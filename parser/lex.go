@@ -14,9 +14,14 @@ type TokenKind int
 
 // Token kinds.
 const (
-	// TokenIdentifier is an identifier.
-	// The Value will be the identifier's equivalent symbol.
+	// TokenIdentifier is a plain identifier
+	// that might be a keyword, depending on position.
+	// The Value will be the identifier itself.
 	TokenIdentifier TokenKind = 1 + iota
+	// TokenQuotedIdentifier is an identifier
+	// surrounded by `['` and `']` or `["` and `"]`.
+	// The Value will be the contents of the quoted string.
+	TokenQuotedIdentifier
 	TokenPipe
 
 	// TokenError is a marker for a scan error.
@@ -33,6 +38,14 @@ type Token struct {
 	// Value contains kind-specific information about the token.
 	// See the docs for [TokenKind] for what Value represents.
 	Value string
+}
+
+func errorToken(span Span, format string, args ...any) Token {
+	return Token{
+		Kind:  TokenError,
+		Span:  span,
+		Value: fmt.Sprintf(format, args...),
+	}
 }
 
 type scanner struct {
@@ -63,13 +76,12 @@ func Scan(query string) []Token {
 				Kind: TokenPipe,
 				Span: Span{Start: start, End: s.pos},
 			})
+		case c == '[':
+			s.prev()
+			tokens = append(tokens, s.quotedIdent())
 		default:
 			span := Span{Start: start, End: s.pos}
-			tokens = append(tokens, Token{
-				Kind:  TokenError,
-				Span:  span,
-				Value: fmt.Sprintf("unrecognized character %q", spanString(query, span)),
-			})
+			tokens = append(tokens, errorToken(span, "unrecognized character %q", spanString(query, span)))
 		}
 	}
 	return tokens
@@ -93,6 +105,51 @@ func (s *scanner) ident() Token {
 		Kind:  TokenIdentifier,
 		Span:  span,
 		Value: spanString(s.s, span),
+	}
+}
+
+func (s *scanner) quotedIdent() Token {
+	span := Span{Start: s.pos}
+	if c, ok := s.next(); !ok || c != '[' {
+		span.End = s.pos
+		return errorToken(span, "parse quoted identifier: expected '[', found %q", c)
+	}
+	quoteChar, ok := s.next()
+	if !ok {
+		span.End = s.pos
+		return errorToken(span, "parse quoted identifier: expected '[', found %q", quoteChar)
+	}
+	if quoteChar != '\'' && quoteChar != '"' {
+		s.prev()
+		span.End = s.pos
+		return errorToken(span, "parse quoted identifier: expected ' or \", found %q", quoteChar)
+	}
+
+	for {
+		// Check for terminator.
+		tail := s.s[s.pos:]
+		if len(tail) >= 2 && tail[0] == byte(quoteChar) && tail[1] == ']' {
+			value := s.s[span.Start+len(`["`) : s.pos]
+			s.pos += len(`"]`)
+			span.End = s.pos
+			return Token{
+				Kind:  TokenQuotedIdentifier,
+				Span:  span,
+				Value: value,
+			}
+		}
+
+		// Now check for end of line or end of query.
+		c, ok := s.next()
+		if !ok {
+			span.End = s.pos
+			return errorToken(span, "parse quoted identifier: unexpected EOF")
+		}
+		if c == '\n' {
+			s.prev()
+			span.End = s.pos
+			return errorToken(span, "parse quoted identifier: unexpected end of line")
+		}
 	}
 }
 

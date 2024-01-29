@@ -57,7 +57,7 @@ func TestClickhouseLocal(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, tab := range tables {
-				args = append(args, "--query", fmt.Sprintf("CREATE TABLE %s AS file('%s');", tab.name, tab.filename))
+				args = append(args, "--query", fmt.Sprintf("CREATE TABLE \"%s\" AS file('%s');", tab.name, tab.filename))
 			}
 			args = append(args, "--query", query)
 

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -34,16 +35,58 @@ func TestScan(t *testing.T) {
 				{Kind: TokenIdentifier, Span: Span{Start: 6, End: 9}, Value: "bar"},
 			},
 		},
+		{
+			name:  "SingleQuotedIdent",
+			query: "['foo']\n",
+			want: []Token{
+				{Kind: TokenQuotedIdentifier, Span: Span{Start: 0, End: 7}, Value: "foo"},
+			},
+		},
+		{
+			name:  "DoubleQuotedIdent",
+			query: `["foo"]`,
+			want: []Token{
+				{Kind: TokenQuotedIdentifier, Span: Span{Start: 0, End: 7}, Value: "foo"},
+			},
+		},
+		{
+			name:  "UnterminatedQuotedIdent",
+			query: `["foo"`,
+			want: []Token{
+				{Kind: TokenError, Span: Span{Start: 0, End: 6}},
+			},
+		},
+		{
+			name:  "LineSplitQuotedIdent",
+			query: "['foo\nbar']",
+			want: []Token{
+				{Kind: TokenError, Span: Span{Start: 0, End: 5}},
+				{Kind: TokenIdentifier, Span: Span{Start: 6, End: 9}, Value: "bar"},
+				{Kind: TokenError, Span: Span{Start: 9, End: 10}},
+				{Kind: TokenError, Span: Span{Start: 10, End: 11}},
+			},
+		},
 	}
+
+	ignoreErrorValues := cmp.Transformer("ignoreErrorValues", func(tok Token) Token {
+		if tok.Kind == TokenError {
+			tok.Value = ""
+		}
+		return tok
+	})
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got := Scan(test.query)
-			if diff := cmp.Diff(test.want, got, cmpopts.EquateEmpty()); diff != "" {
+
+			if diff := cmp.Diff(test.want, got, cmpopts.EquateEmpty(), ignoreErrorValues); diff != "" {
 				t.Errorf("Scan(%q) (-want +got):\n%s", test.query, diff)
 			}
 		})
 	}
 }
+
+var tokenType = reflect.TypeOf((*Token)(nil)).Elem()
 
 func TestSpan(t *testing.T) {
 	tests := []struct {

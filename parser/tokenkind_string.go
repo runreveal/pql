@@ -9,24 +9,25 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[TokenIdentifier-1]
-	_ = x[TokenPipe-2]
+	_ = x[TokenQuotedIdentifier-2]
+	_ = x[TokenPipe-3]
 	_ = x[TokenError - -1]
 }
 
 const (
 	_TokenKind_name_0 = "TokenError"
-	_TokenKind_name_1 = "TokenIdentifierTokenPipe"
+	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenPipe"
 )
 
 var (
-	_TokenKind_index_1 = [...]uint8{0, 15, 24}
+	_TokenKind_index_1 = [...]uint8{0, 15, 36, 45}
 )
 
 func (i TokenKind) String() string {
 	switch {
 	case i == -1:
 		return _TokenKind_name_0
-	case 1 <= i && i <= 2:
+	case 1 <= i && i <= 3:
 		i -= 1
 		return _TokenKind_name_1[_TokenKind_index_1[i]:_TokenKind_index_1[i+1]]
 	default:
