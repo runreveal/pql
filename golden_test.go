@@ -3,6 +3,7 @@ package pql
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,31 +15,24 @@ import (
 var recordGoldens = flag.Bool("record", false, "output golden files")
 
 func TestGoldens(t *testing.T) {
-	dir := filepath.Join("testdata", "Goldens")
-	dirListing, err := os.ReadDir(dir)
+	tests, err := findGoldenTests()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, entry := range dirListing {
-		testName := entry.Name()
-		if !entry.IsDir() || strings.HasPrefix(testName, ".") || strings.HasPrefix(testName, "_") {
-			continue
-		}
-
-		t.Run(testName, func(t *testing.T) {
-			testDir := filepath.Join(dir, testName)
-			input, err := os.ReadFile(filepath.Join(testDir, "input.pql"))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			input, err := test.input()
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			got, err := Compile(string(input))
+			got, err := Compile(input)
 			if err != nil {
 				t.Error("Compile(...):", err)
 			}
 
-			outputPath := filepath.Join(testDir, "output.sql")
+			outputPath := filepath.Join(test.dir, "output.sql")
 			if *recordGoldens {
 				// For easier editing, ensure there is a trailing newline.
 				if got != "" && !strings.HasSuffix(got, "\n") {
@@ -64,4 +58,39 @@ func TestGoldens(t *testing.T) {
 			}
 		})
 	}
+}
+
+type goldenTest struct {
+	name string
+	dir  string
+}
+
+func findGoldenTests() ([]goldenTest, error) {
+	root := filepath.Join("testdata", "Goldens")
+	rootListing, err := os.ReadDir(root)
+	if err != nil {
+		return nil, fmt.Errorf("list golden test: %v", err)
+	}
+
+	var result []goldenTest
+	for _, entry := range rootListing {
+		testName := entry.Name()
+		if !entry.IsDir() || shouldIgnoreFilename(testName) {
+			continue
+		}
+		result = append(result, goldenTest{
+			name: testName,
+			dir:  filepath.Join(root, testName),
+		})
+	}
+	return result, nil
+}
+
+func (test goldenTest) input() (string, error) {
+	input, err := os.ReadFile(filepath.Join(test.dir, "input.pql"))
+	return string(input), err
+}
+
+func shouldIgnoreFilename(name string) bool {
+	return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")
 }
