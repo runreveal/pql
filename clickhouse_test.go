@@ -34,6 +34,9 @@ func TestClickhouseLocal(t *testing.T) {
 		}
 
 		t.Run(test.name, func(t *testing.T) {
+			if test.skip {
+				t.Skipf("'skip' file present in %s; skipping...", test.dir)
+			}
 			if wantCSVError != nil {
 				t.Fatal("Could not read expected output:", wantCSVError)
 			}

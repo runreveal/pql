@@ -2,6 +2,7 @@ package pql
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -22,6 +23,10 @@ func TestGoldens(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			if test.skip {
+				t.Skipf("'skip' file present in %s; skipping...", test.dir)
+			}
+
 			input, err := test.input()
 			if err != nil {
 				t.Fatal(err)
@@ -63,25 +68,32 @@ func TestGoldens(t *testing.T) {
 type goldenTest struct {
 	name string
 	dir  string
+	skip bool
 }
 
 func findGoldenTests() ([]goldenTest, error) {
 	root := filepath.Join("testdata", "Goldens")
 	rootListing, err := os.ReadDir(root)
 	if err != nil {
-		return nil, fmt.Errorf("list golden test: %v", err)
+		return nil, fmt.Errorf("find golden tests: %v", err)
 	}
 
 	var result []goldenTest
 	for _, entry := range rootListing {
-		testName := entry.Name()
-		if !entry.IsDir() || shouldIgnoreFilename(testName) {
+		fileName := entry.Name()
+		if !entry.IsDir() || shouldIgnoreFilename(fileName) {
 			continue
 		}
-		result = append(result, goldenTest{
-			name: testName,
-			dir:  filepath.Join(root, testName),
-		})
+		test := goldenTest{
+			name: fileName,
+			dir:  filepath.Join(root, fileName),
+		}
+		if _, err := os.Stat(filepath.Join(test.dir, "skip")); err == nil {
+			test.skip = true
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("find golden tests: check for skip: %v", err)
+		}
+		result = append(result, test)
 	}
 	return result, nil
 }
