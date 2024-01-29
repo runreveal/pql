@@ -1,1 +1,2 @@
-/testdata/Goldens/ eol=lf
+/testdata/Goldens/**/*.sql eol=lf
+/testdata/Goldens/**/*.pql eol=lf
