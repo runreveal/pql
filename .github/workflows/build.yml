@@ -1,0 +1,22 @@
+name: Build
+on:
+  - push
+  - pull_request
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.21"
+    - name: Run tests
+      run: go test -mod=readonly -race -v ./...
