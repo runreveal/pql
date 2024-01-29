@@ -6,7 +6,7 @@
     flake-utils.url = "flake-utils";
   };
 
-  outputs = { nixpkgs, flake-utils, ... }:
+  outputs = { self, nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -17,11 +17,11 @@
 
         devShells.default = pkgs.mkShell {
           packages = [
-            pkgs.clickhouse
             pkgs.go-tools # staticcheck
-            go
             pkgs.gotools  # godoc, etc.
           ];
+
+          inputsFrom = [ self.checks.${system}.go_test ];
 
           hardeningDisable = [ "fortify" ];
         };
@@ -33,6 +33,7 @@
 
           nativeBuildInputs = [
             pkgs.cacert
+            pkgs.clickhouse
             go
           ];
 
