@@ -10,13 +10,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     steps:
     - name: Check out code
       uses: actions/checkout@v4
-    - name: Set up Go
-      uses: actions/setup-go@v5
+    - name: Install Nix
+      uses: cachix/install-nix-action@v25
       with:
-        go-version: "1.21"
+        extra_nix_config: |
+          experimental-features = nix-command flakes ca-derivations impure-derivations
     - name: Run tests
-      run: go test -mod=readonly -race -v ./...
+      run: nix flake check --print-build-logs
