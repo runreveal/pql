@@ -84,6 +84,99 @@ func TestScan(t *testing.T) {
 				{Kind: TokenIdentifier, Span: Span{Start: 6, End: 9}, Value: "bar"},
 			},
 		},
+		{
+			name:  "Zero",
+			query: "0",
+			want: []Token{
+				{Kind: TokenNumber, Span: Span{Start: 0, End: 1}, Value: "0"},
+			},
+		},
+		{
+			name:  "LeadingZeroes",
+			query: "007",
+			want: []Token{
+				{Kind: TokenNumber, Span: Span{Start: 0, End: 3}, Value: "7"},
+			},
+		},
+		{
+			name:  "Integer",
+			query: "123",
+			want: []Token{
+				{Kind: TokenNumber, Span: Span{Start: 0, End: 3}, Value: "123"},
+			},
+		},
+		{
+			name:  "Float",
+			query: "3.14",
+			want: []Token{
+				{Kind: TokenNumber, Span: Span{Start: 0, End: 4}, Value: "3.14"},
+			},
+		},
+		{
+			name:  "Exponent",
+			query: "1e-9",
+			want: []Token{
+				{Kind: TokenNumber, Span: Span{Start: 0, End: 4}, Value: "1e-9"},
+			},
+		},
+		{
+			name:  "ZeroExponent",
+			query: "0e9",
+			want: []Token{
+				{Kind: TokenNumber, Span: Span{Start: 0, End: 3}, Value: "0e9"},
+			},
+		},
+		{
+			name:  "LeadingDot",
+			query: ".001",
+			want: []Token{
+				{Kind: TokenNumber, Span: Span{Start: 0, End: 4}, Value: "0.001"},
+			},
+		},
+		{
+			name:  "ZeroDotDecimal",
+			query: "0.001",
+			want: []Token{
+				{Kind: TokenNumber, Span: Span{Start: 0, End: 5}, Value: "0.001"},
+			},
+		},
+		{
+			name:  "LeadingDotIdentifier",
+			query: ".foo",
+			want: []Token{
+				{Kind: TokenDot, Span: Span{Start: 0, End: 1}},
+				{Kind: TokenIdentifier, Span: Span{Start: 1, End: 4}, Value: "foo"},
+			},
+		},
+		{
+			name:  "Hexadecimal",
+			query: "0xdeadbeef",
+			want: []Token{
+				{Kind: TokenNumber, Span: Span{Start: 0, End: 10}, Value: "3735928559"},
+			},
+		},
+		{
+			name:  "UnterminatedHex",
+			query: "0x",
+			want: []Token{
+				{Kind: TokenError, Span: Span{Start: 0, End: 2}},
+			},
+		},
+		{
+			name:  "BrokenHex",
+			query: "0xy",
+			want: []Token{
+				{Kind: TokenError, Span: Span{Start: 0, End: 2}},
+				{Kind: TokenIdentifier, Span: Span{Start: 2, End: 3}, Value: "y"},
+			},
+		},
+		{
+			name:  "JustDot",
+			query: ".",
+			want: []Token{
+				{Kind: TokenDot, Span: Span{Start: 0, End: 1}},
+			},
+		},
 	}
 
 	ignoreErrorValues := cmp.Transformer("ignoreErrorValues", func(tok Token) Token {

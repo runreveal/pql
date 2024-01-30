@@ -10,24 +10,27 @@ func _() {
 	var x [1]struct{}
 	_ = x[TokenIdentifier-1]
 	_ = x[TokenQuotedIdentifier-2]
-	_ = x[TokenPipe-3]
+	_ = x[TokenNumber-3]
+	_ = x[TokenPipe-4]
+	_ = x[TokenDot-5]
+	_ = x[TokenSlash-6]
 	_ = x[TokenError - -1]
 }
 
 const (
 	_TokenKind_name_0 = "TokenError"
-	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenPipe"
+	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenNumberTokenPipeTokenDotTokenSlash"
 )
 
 var (
-	_TokenKind_index_1 = [...]uint8{0, 15, 36, 45}
+	_TokenKind_index_1 = [...]uint8{0, 15, 36, 47, 56, 64, 74}
 )
 
 func (i TokenKind) String() string {
 	switch {
 	case i == -1:
 		return _TokenKind_name_0
-	case 1 <= i && i <= 3:
+	case 1 <= i && i <= 6:
 		i -= 1
 		return _TokenKind_name_1[_TokenKind_index_1[i]:_TokenKind_index_1[i+1]]
 	default:

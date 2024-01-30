@@ -4,6 +4,8 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -22,9 +24,16 @@ const (
 	// surrounded by `['` and `']` or `["` and `"]`.
 	// The Value will be the contents of the quoted string.
 	TokenQuotedIdentifier
+	// TokenNumber is a numeric literal like "123", "3.14", "1e-9", or "0xdeadbeef".
+	// The Value will be a decimal formatted string.
+	TokenNumber
+
 	// TokenPipe is a single pipe character ("|").
 	// The Value will be the empty string.
 	TokenPipe
+	// TokenDot is a period character (".").
+	// The Value will be the empty string.
+	TokenDot
 	// TokenSlash is a single slash character ("/").
 	// The Value will be the empty string.
 	TokenSlash
@@ -76,6 +85,9 @@ func Scan(query string) []Token {
 		case isAlpha(c) || c == '_':
 			s.prev()
 			tokens = append(tokens, s.ident())
+		case isDigit(c) || c == '.':
+			s.prev()
+			tokens = append(tokens, s.numberOrDot())
 		case c == '|':
 			tokens = append(tokens, Token{
 				Kind: TokenPipe,
@@ -183,6 +195,177 @@ func (s *scanner) quotedIdent() Token {
 	}
 }
 
+func (s *scanner) numberOrDot() Token {
+	start := s.pos
+	c, ok := s.next()
+	if !ok {
+		return errorToken(Span{Start: start, End: start}, "parse numeric literal: unexpected EOF")
+	}
+
+	// First character.
+	hasDecimalPoint := false
+	switch {
+	case c == '0':
+		c, ok := s.next()
+		if !ok {
+			return Token{
+				Kind:  TokenNumber,
+				Span:  Span{Start: start, End: s.pos},
+				Value: "0",
+			}
+		}
+		switch {
+		case c == '.':
+			hasDecimalPoint = true
+		case c == 'e' || c == 'E':
+			s.prev()
+			s.numberExponent()
+			span := Span{Start: start, End: s.pos}
+			return Token{
+				Kind:  TokenNumber,
+				Span:  span,
+				Value: normalizeNumberValue(spanString(s.s, span)),
+			}
+		case c == 'x' || c == 'X':
+			// Hexadecimal constant.
+			hexDigitStart := s.pos
+			c, ok := s.next()
+			if !ok || !isHexDigit(c) {
+				s.setPos(start + 2)
+				return Token{
+					Kind:  TokenError,
+					Span:  Span{Start: start, End: s.pos},
+					Value: "invalid hex literal",
+				}
+			}
+
+			for {
+				c, ok := s.next()
+				if !ok {
+					break
+				}
+				if !isHexDigit(c) {
+					s.prev()
+					break
+				}
+			}
+			span := Span{Start: start, End: s.pos}
+			n, err := strconv.ParseUint(s.s[hexDigitStart:s.pos], 16, 64)
+			if err != nil {
+				return errorToken(span, "parse hex literal: %v", err)
+			}
+			return Token{
+				Kind:  TokenNumber,
+				Span:  span,
+				Value: strconv.FormatUint(n, 10),
+			}
+		case !isDigit(c):
+			s.prev()
+		}
+	case c == '.':
+		// Must have at least one subsequent digit to be considered a numeric literal.
+		hasDecimalPoint = true
+		c, ok := s.next()
+		if !ok {
+			return Token{
+				Kind: TokenDot,
+				Span: Span{Start: start, End: s.pos},
+			}
+		}
+		if !isDigit(c) {
+			s.prev()
+			return Token{
+				Kind: TokenDot,
+				Span: Span{Start: start, End: s.pos},
+			}
+		}
+	case !isDigit(c):
+		end := s.pos
+		s.prev()
+		return errorToken(Span{Start: start, End: end}, "parse numeric literal: unexpected character %q", c)
+	}
+
+	// Subsequent decimal digits.
+	for {
+		c, ok := s.next()
+		switch {
+		case !ok:
+			span := Span{Start: start, End: s.pos}
+			return Token{
+				Kind:  TokenNumber,
+				Span:  span,
+				Value: normalizeNumberValue(spanString(s.s, span)),
+			}
+		case c == '.' && !hasDecimalPoint:
+			hasDecimalPoint = true
+		case !isDigit(c):
+			s.prev()
+			s.numberExponent()
+			span := Span{Start: start, End: s.pos}
+			return Token{
+				Kind:  TokenNumber,
+				Span:  span,
+				Value: normalizeNumberValue(spanString(s.s, span)),
+			}
+		}
+	}
+}
+
+func (s *scanner) numberExponent() (found bool) {
+	start := s.pos
+	defer func() {
+		if !found {
+			s.setPos(start)
+		}
+	}()
+
+	c, ok := s.next()
+	if !ok {
+		return false
+	}
+	if c != 'e' && c != 'E' {
+		return false
+	}
+
+	// Must have at least one digit.
+	c, ok = s.next()
+	if !ok {
+		return false
+	}
+	if c == '+' || c == '-' {
+		c, ok = s.next()
+		if !ok {
+			return false
+		}
+	}
+	if !isDigit(c) {
+		return false
+	}
+
+	for {
+		c, ok = s.next()
+		if !ok {
+			return true
+		}
+		if !isDigit(c) {
+			s.prev()
+			return true
+		}
+	}
+}
+
+func normalizeNumberValue(s string) string {
+	s = strings.TrimLeft(s, "0")
+	switch {
+	case s == "":
+		return "0"
+	case s[0] == '.' || s[0] == 'e' || s[0] == 'E':
+		return "0" + s
+	default:
+		return s
+	}
+}
+
 func (s *scanner) next() (rune, bool) {
 	if s.pos >= len(s.s) {
 		return 0, false
@@ -195,6 +378,11 @@ func (s *scanner) next() (rune, bool) {
 
 func (s *scanner) prev() {
 	s.pos = s.last
+}
+
+func (s *scanner) setPos(pos int) {
+	s.pos = pos
+	s.last = pos
 }
 
 // A Span is a reference contiguous sequence of bytes in a query.
@@ -240,4 +428,8 @@ func isAlpha(c rune) bool {
 
 func isDigit(c rune) bool {
 	return '0' <= c && c <= '9'
+}
+
+func isHexDigit(c rune) bool {
+	return isDigit(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
 }
