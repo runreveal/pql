@@ -11,11 +11,38 @@ import (
 // Compile converts the given Pipeline Query Language statement
 // into the equivalent SQL.
 func Compile(source string) (string, error) {
-	tokens := parser.Scan(source)
-	if len(tokens) == 1 && (tokens[0].Kind == parser.TokenIdentifier || tokens[0].Kind == parser.TokenQuotedIdentifier) {
-		return "SELECT * FROM " + quoteIdentifier(tokens[0].Value) + ";", nil
+	expr, err := parser.Parse(source)
+	if err != nil {
+		return "", err
 	}
-	return "", fmt.Errorf("compile pipeline %q: not handled", source)
+
+	dataSource, err := dataSourceSQL(expr.Source)
+	if err != nil {
+		return "", err
+	}
+
+	switch {
+	case len(expr.Operators) == 0:
+		return "SELECT * FROM " + dataSource + ";", nil
+	case len(expr.Operators) == 1:
+		switch op := expr.Operators[0].(type) {
+		case *parser.CountOperator:
+			return "SELECT COUNT(*) FROM " + dataSource + ";", nil
+		default:
+			return "", fmt.Errorf("unsupported operator %T", op)
+		}
+	default:
+		return "", fmt.Errorf("only one operator implemented")
+	}
+}
+
+func dataSourceSQL(src parser.TabularDataSource) (string, error) {
+	switch src := src.(type) {
+	case *parser.TableRef:
+		return quoteIdentifier(src.Table.Name), nil
+	default:
+		return "", fmt.Errorf("unhandled data source %T", src)
+	}
 }
 
 func quoteIdentifier(name string) string {
