@@ -12,6 +12,8 @@ type parser struct {
 	pos    int
 }
 
+// Parse converts a Pipeline Query Language tabular expression
+// into an Abstract Syntax Tree (AST).
 func Parse(query string) (*TabularExpr, error) {
 	p := &parser{
 		source: query,
