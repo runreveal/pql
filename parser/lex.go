@@ -22,7 +22,12 @@ const (
 	// surrounded by `['` and `']` or `["` and `"]`.
 	// The Value will be the contents of the quoted string.
 	TokenQuotedIdentifier
+	// TokenPipe is a single pipe character ("|").
+	// The Value will be the empty string.
 	TokenPipe
+	// TokenSlash is a single slash character ("/").
+	// The Value will be the empty string.
+	TokenSlash
 
 	// TokenError is a marker for a scan error.
 	// The Value will contain the error message.
@@ -79,6 +84,31 @@ func Scan(query string) []Token {
 		case c == '[':
 			s.prev()
 			tokens = append(tokens, s.quotedIdent())
+		case c == '/':
+			// Check for double-slash comment.
+			c, ok = s.next()
+			if !ok {
+				tokens = append(tokens, Token{
+					Kind: TokenSlash,
+					Span: Span{Start: start, End: s.pos},
+				})
+				continue
+			}
+			if c == '/' {
+				// It's a comment, consume to end of line.
+				for {
+					c, ok = s.next()
+					if !ok || c == '\n' {
+						break
+					}
+				}
+				continue
+			}
+			s.prev()
+			tokens = append(tokens, Token{
+				Kind: TokenSlash,
+				Span: Span{Start: start, End: s.pos},
+			})
 		default:
 			span := Span{Start: start, End: s.pos}
 			tokens = append(tokens, errorToken(span, "unrecognized character %q", spanString(query, span)))

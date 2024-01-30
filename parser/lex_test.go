@@ -66,6 +66,24 @@ func TestScan(t *testing.T) {
 				{Kind: TokenError, Span: Span{Start: 10, End: 11}},
 			},
 		},
+		{
+			name:  "Comments",
+			query: "StormEvents // the table name\n// Another comment\n| count",
+			want: []Token{
+				{Kind: TokenIdentifier, Span: Span{Start: 0, End: 11}, Value: "StormEvents"},
+				{Kind: TokenPipe, Span: Span{Start: 49, End: 50}},
+				{Kind: TokenIdentifier, Span: Span{Start: 51, End: 56}, Value: "count"},
+			},
+		},
+		{
+			name:  "Slash",
+			query: "foo / bar",
+			want: []Token{
+				{Kind: TokenIdentifier, Span: Span{Start: 0, End: 3}, Value: "foo"},
+				{Kind: TokenSlash, Span: Span{Start: 4, End: 5}},
+				{Kind: TokenIdentifier, Span: Span{Start: 6, End: 9}, Value: "bar"},
+			},
+		},
 	}
 
 	ignoreErrorValues := cmp.Transformer("ignoreErrorValues", func(tok Token) Token {
