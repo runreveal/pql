@@ -11,26 +11,27 @@ func _() {
 	_ = x[TokenIdentifier-1]
 	_ = x[TokenQuotedIdentifier-2]
 	_ = x[TokenNumber-3]
-	_ = x[TokenPipe-4]
-	_ = x[TokenDot-5]
-	_ = x[TokenSlash-6]
+	_ = x[TokenString-4]
+	_ = x[TokenPipe-5]
+	_ = x[TokenDot-6]
+	_ = x[TokenSlash-7]
 	_ = x[TokenError - -1]
 }
 
 const (
 	_TokenKind_name_0 = "TokenError"
-	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenNumberTokenPipeTokenDotTokenSlash"
+	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenNumberTokenStringTokenPipeTokenDotTokenSlash"
 )
 
 var (
-	_TokenKind_index_1 = [...]uint8{0, 15, 36, 47, 56, 64, 74}
+	_TokenKind_index_1 = [...]uint8{0, 15, 36, 47, 58, 67, 75, 85}
 )
 
 func (i TokenKind) String() string {
 	switch {
 	case i == -1:
 		return _TokenKind_name_0
-	case 1 <= i && i <= 6:
+	case 1 <= i && i <= 7:
 		i -= 1
 		return _TokenKind_name_1[_TokenKind_index_1[i]:_TokenKind_index_1[i+1]]
 	default:

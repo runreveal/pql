@@ -62,8 +62,7 @@ func TestScan(t *testing.T) {
 			want: []Token{
 				{Kind: TokenError, Span: Span{Start: 0, End: 5}},
 				{Kind: TokenIdentifier, Span: Span{Start: 6, End: 9}, Value: "bar"},
-				{Kind: TokenError, Span: Span{Start: 9, End: 10}},
-				{Kind: TokenError, Span: Span{Start: 10, End: 11}},
+				{Kind: TokenError, Span: Span{Start: 9, End: 11}},
 			},
 		},
 		{
@@ -175,6 +174,43 @@ func TestScan(t *testing.T) {
 			query: ".",
 			want: []Token{
 				{Kind: TokenDot, Span: Span{Start: 0, End: 1}},
+			},
+		},
+		{
+			name:  "SingleQuotedLiteral",
+			query: `'abc'`,
+			want: []Token{
+				{Kind: TokenString, Span: Span{Start: 0, End: 5}, Value: "abc"},
+			},
+		},
+		{
+			name:  "DoubleQuotedLiteral",
+			query: `"abc"`,
+			want: []Token{
+				{Kind: TokenString, Span: Span{Start: 0, End: 5}, Value: "abc"},
+			},
+		},
+		{
+			name:  "UnterminatedString",
+			query: `"abc`,
+			want: []Token{
+				{Kind: TokenError, Span: Span{Start: 0, End: 4}},
+			},
+		},
+		{
+			name:  "StringWithNewline",
+			query: "\"abc\ndef\"",
+			want: []Token{
+				{Kind: TokenError, Span: Span{Start: 0, End: 4}},
+				{Kind: TokenIdentifier, Span: Span{Start: 5, End: 8}, Value: "def"},
+				{Kind: TokenError, Span: Span{Start: 8, End: 9}},
+			},
+		},
+		{
+			name:  "StringWithEscapes",
+			query: `"abc\"\n\t\\def"`,
+			want: []Token{
+				{Kind: TokenString, Span: Span{Start: 0, End: 16}, Value: "abc\"\n\t\\def"},
 			},
 		},
 	}

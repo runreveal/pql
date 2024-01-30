@@ -27,6 +27,9 @@ const (
 	// TokenNumber is a numeric literal like "123", "3.14", "1e-9", or "0xdeadbeef".
 	// The Value will be a decimal formatted string.
 	TokenNumber
+	// TokenString is a string literal enclosed by single or double quotes.
+	// The Value will be the literal's value (i.e. any escape sequences are evaluated).
+	TokenString
 
 	// TokenPipe is a single pipe character ("|").
 	// The Value will be the empty string.
@@ -88,6 +91,9 @@ func Scan(query string) []Token {
 		case isDigit(c) || c == '.':
 			s.prev()
 			tokens = append(tokens, s.numberOrDot())
+		case c == '"' || c == '\'':
+			s.prev()
+			tokens = append(tokens, s.string())
 		case c == '|':
 			tokens = append(tokens, Token{
 				Kind: TokenPipe,
@@ -363,6 +369,68 @@ func normalizeNumberValue(s string) string {
 		return "0" + s
 	default:
 		return s
+	}
+}
+
+func (s *scanner) string() Token {
+	start := s.pos
+	quoteChar, ok := s.next()
+	if !ok {
+		return errorToken(Span{Start: start, End: start}, "unexpected EOF (expected string)")
+	}
+	if quoteChar != '\'' && quoteChar != '"' {
+		s.prev()
+		return errorToken(Span{Start: start, End: start}, "unexpected %q (expected string)", quoteChar)
+	}
+
+	valueStart := s.pos
+	var valueBuilder *strings.Builder // nil if no escapes encountered
+	for {
+		c, ok := s.next()
+		if !ok {
+			return errorToken(Span{Start: start, End: s.pos}, "unterminated string")
+		}
+		switch c {
+		case quoteChar:
+			var value string
+			if valueBuilder == nil {
+				value = s.s[valueStart:s.last]
+			} else {
+				value = valueBuilder.String()
+			}
+			return Token{
+				Kind:  TokenString,
+				Span:  Span{Start: start, End: s.pos},
+				Value: value,
+			}
+		case '\n':
+			s.prev()
+			return errorToken(Span{Start: start, End: s.pos}, "unterminated string")
+		case '\\':
+			if valueBuilder == nil {
+				valueBuilder = new(strings.Builder)
+				valueBuilder.WriteString(s.s[valueStart:s.last])
+			}
+			c, ok := s.next()
+			if !ok {
+				return errorToken(Span{Start: start, End: s.pos}, "unterminated string")
+			}
+			switch c {
+			case '\n':
+				s.prev()
+				return errorToken(Span{Start: start, End: s.pos}, "unterminated string")
+			case 'n':
+				valueBuilder.WriteRune('\n')
+			case 't':
+				valueBuilder.WriteRune('\t')
+			default:
+				valueBuilder.WriteRune(c)
+			}
+		default:
+			if valueBuilder != nil {
+				valueBuilder.WriteRune(c)
+			}
+		}
 	}
 }
 
