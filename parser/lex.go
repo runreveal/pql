@@ -31,15 +31,68 @@ const (
 	// The Value will be the literal's value (i.e. any escape sequences are evaluated).
 	TokenString
 
+	// TokenAnd is the keyword "and".
+	// The Value will be the empty string.
+	TokenAnd
+	// TokenOr is the keyword "or".
+	// The Value will be the empty string.
+	TokenOr
+
 	// TokenPipe is a single pipe character ("|").
 	// The Value will be the empty string.
 	TokenPipe
 	// TokenDot is a period character (".").
 	// The Value will be the empty string.
 	TokenDot
-	// TokenSlash is a single slash character ("/").
+	// TokenPlus is a single plus character ("+").
+	// The Value will be the empty string.
+	TokenPlus
+	// TokenMinus is a single hyphen character ("-").
+	// The Value will be the empty string.
+	TokenMinus
+	// TokenStar is a single asterisk character ("*").
+	// The Value will be the empty string.
+	TokenStar
+	// TokenSlash is a single forward slash character ("/").
 	// The Value will be the empty string.
 	TokenSlash
+	// TokenMod is a single percent sign character ("%").
+	// The Value will be the empty string.
+	TokenMod
+	// TokenAssign is a single equals sign character ("=").
+	// The Value will be the empty string.
+	TokenAssign
+	// TokenEq is a sequence of two equals sign characters ("==").
+	// The Value will be the empty string.
+	TokenEq
+	// TokenNE is the sequence "!=", representing an inequality test.
+	// The Value will be the empty string.
+	TokenNE
+	// TokenLT is the less than symbol ("<").
+	// The Value will be the empty string.
+	TokenLT
+	// TokenLE is the less than or equal sequence "<=".
+	// The Value will be the empty string.
+	TokenLE
+	// TokenGT is the greater than symbol (">").
+	// The Value will be the empty string.
+	TokenGT
+	// TokenGE is the greater than or equal sequence ">=".
+	// The Value will be the empty string.
+	TokenGE
+	// TokenCaseInsensitiveEq is the sequence "=~".
+	// The Value will be the empty string.
+	TokenCaseInsensitiveEq
+	// TokenCaseInsensitiveNE is the sequence "!~".
+	// The Value will be the empty string.
+	TokenCaseInsensitiveNE
+
+	// TokenLParen is a left parenthesis.
+	// The Value will be the empty string.
+	TokenLParen
+	// TokenRParen is a right parenthesis.
+	// The Value will be the empty string.
+	TokenRParen
 
 	// TokenError is a marker for a scan error.
 	// The Value will contain the error message.
@@ -102,6 +155,72 @@ func Scan(query string) []Token {
 		case c == '[':
 			s.prev()
 			tokens = append(tokens, s.quotedIdent())
+		case c == '(':
+			tokens = append(tokens, Token{
+				Kind: TokenLParen,
+				Span: Span{Start: start, End: s.pos},
+			})
+		case c == ')':
+			tokens = append(tokens, Token{
+				Kind: TokenRParen,
+				Span: Span{Start: start, End: s.pos},
+			})
+		case c == '=':
+			c, ok := s.next()
+			switch {
+			case ok && c == '=':
+				tokens = append(tokens, Token{
+					Kind: TokenEq,
+					Span: Span{Start: start, End: s.pos},
+				})
+			case ok && c == '~':
+				tokens = append(tokens, Token{
+					Kind: TokenCaseInsensitiveEq,
+					Span: Span{Start: start, End: s.pos},
+				})
+			default:
+				s.prev()
+				tokens = append(tokens, Token{
+					Kind: TokenAssign,
+					Span: Span{Start: start, End: s.pos},
+				})
+			}
+		case c == '!':
+			c, ok := s.next()
+			switch {
+			case ok && c == '=':
+				tokens = append(tokens, Token{
+					Kind: TokenNE,
+					Span: Span{Start: start, End: s.pos},
+				})
+			case ok && c == '~':
+				tokens = append(tokens, Token{
+					Kind: TokenCaseInsensitiveNE,
+					Span: Span{Start: start, End: s.pos},
+				})
+			default:
+				s.prev()
+				// TODO(maybe): Turn this into logical inversion?
+				// KQL seems to use the not() function.
+				tokens = append(tokens,
+					errorToken(Span{Start: start, End: s.pos}, "unrecognized token '!'"),
+				)
+			}
+		case c == '+':
+			tokens = append(tokens, Token{
+				Kind: TokenPlus,
+				Span: Span{Start: start, End: s.pos},
+			})
+		case c == '-':
+			tokens = append(tokens, Token{
+				Kind: TokenMinus,
+				Span: Span{Start: start, End: s.pos},
+			})
+		case c == '*':
+			tokens = append(tokens, Token{
+				Kind: TokenStar,
+				Span: Span{Start: start, End: s.pos},
+			})
 		case c == '/':
 			// Check for double-slash comment.
 			c, ok = s.next()
@@ -127,6 +246,37 @@ func Scan(query string) []Token {
 				Kind: TokenSlash,
 				Span: Span{Start: start, End: s.pos},
 			})
+		case c == '%':
+			tokens = append(tokens, Token{
+				Kind: TokenMod,
+				Span: Span{Start: start, End: s.pos},
+			})
+		case c == '<':
+			if c, ok := s.next(); ok && c == '=' {
+				tokens = append(tokens, Token{
+					Kind: TokenLE,
+					Span: Span{Start: start, End: s.pos},
+				})
+			} else {
+				s.prev()
+				tokens = append(tokens, Token{
+					Kind: TokenLT,
+					Span: Span{Start: start, End: s.pos},
+				})
+			}
+		case c == '>':
+			if c, ok := s.next(); ok && c == '=' {
+				tokens = append(tokens, Token{
+					Kind: TokenGE,
+					Span: Span{Start: start, End: s.pos},
+				})
+			} else {
+				s.prev()
+				tokens = append(tokens, Token{
+					Kind: TokenGT,
+					Span: Span{Start: start, End: s.pos},
+				})
+			}
 		default:
 			span := Span{Start: start, End: s.pos}
 			tokens = append(tokens, errorToken(span, "unrecognized character %q", spanString(query, span)))
@@ -135,8 +285,13 @@ func Scan(query string) []Token {
 	return tokens
 }
 
+var keywords = map[string]TokenKind{
+	"and": TokenAnd,
+	"or":  TokenOr,
+}
+
 func (s *scanner) ident() Token {
-	span := Span{Start: s.pos}
+	start := s.pos
 	s.next() // assume that the caller validated first character
 	for {
 		c, ok := s.next()
@@ -148,12 +303,16 @@ func (s *scanner) ident() Token {
 			break
 		}
 	}
-	span.End = s.pos
-	return Token{
-		Kind:  TokenIdentifier,
-		Span:  span,
-		Value: spanString(s.s, span),
+	tok := Token{
+		Kind: TokenIdentifier,
+		Span: Span{Start: start, End: s.pos},
 	}
+	tok.Value = spanString(s.s, tok.Span)
+	if kind, ok := keywords[tok.Value]; ok {
+		tok.Kind = kind
+		tok.Value = ""
+	}
+	return tok
 }
 
 func (s *scanner) quotedIdent() Token {

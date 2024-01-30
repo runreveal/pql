@@ -12,26 +12,43 @@ func _() {
 	_ = x[TokenQuotedIdentifier-2]
 	_ = x[TokenNumber-3]
 	_ = x[TokenString-4]
-	_ = x[TokenPipe-5]
-	_ = x[TokenDot-6]
-	_ = x[TokenSlash-7]
+	_ = x[TokenAnd-5]
+	_ = x[TokenOr-6]
+	_ = x[TokenPipe-7]
+	_ = x[TokenDot-8]
+	_ = x[TokenPlus-9]
+	_ = x[TokenMinus-10]
+	_ = x[TokenStar-11]
+	_ = x[TokenSlash-12]
+	_ = x[TokenMod-13]
+	_ = x[TokenAssign-14]
+	_ = x[TokenEq-15]
+	_ = x[TokenNE-16]
+	_ = x[TokenLT-17]
+	_ = x[TokenLE-18]
+	_ = x[TokenGT-19]
+	_ = x[TokenGE-20]
+	_ = x[TokenCaseInsensitiveEq-21]
+	_ = x[TokenCaseInsensitiveNE-22]
+	_ = x[TokenLParen-23]
+	_ = x[TokenRParen-24]
 	_ = x[TokenError - -1]
 }
 
 const (
 	_TokenKind_name_0 = "TokenError"
-	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenNumberTokenStringTokenPipeTokenDotTokenSlash"
+	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenNumberTokenStringTokenAndTokenOrTokenPipeTokenDotTokenPlusTokenMinusTokenStarTokenSlashTokenModTokenAssignTokenEqTokenNETokenLTTokenLETokenGTTokenGETokenCaseInsensitiveEqTokenCaseInsensitiveNETokenLParenTokenRParen"
 )
 
 var (
-	_TokenKind_index_1 = [...]uint8{0, 15, 36, 47, 58, 67, 75, 85}
+	_TokenKind_index_1 = [...]uint8{0, 15, 36, 47, 58, 66, 73, 82, 90, 99, 109, 118, 128, 136, 147, 154, 161, 168, 175, 182, 189, 211, 233, 244, 255}
 )
 
 func (i TokenKind) String() string {
 	switch {
 	case i == -1:
 		return _TokenKind_name_0
-	case 1 <= i && i <= 7:
+	case 1 <= i && i <= 24:
 		i -= 1
 		return _TokenKind_name_1[_TokenKind_index_1[i]:_TokenKind_index_1[i+1]]
 	default:
