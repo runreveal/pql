@@ -23,12 +23,24 @@ func Parse(query string) (*TabularExpr, error) {
 	if p.pos < len(p.tokens) {
 		trailingToken := p.tokens[p.pos]
 		if trailingToken.Kind == TokenError {
-			err = joinErrors(err, fmt.Errorf("%s: %s", linecol(query, trailingToken.Span.Start), trailingToken.Value))
+			err = joinErrors(err, &parseError{
+				source: p.source,
+				span:   trailingToken.Span,
+				err:    errors.New(trailingToken.Value),
+			})
 		} else {
-			err = joinErrors(err, fmt.Errorf("%s: unrecognized token", linecol(query, trailingToken.Span.Start)))
+			err = joinErrors(err, &parseError{
+				source: p.source,
+				span:   trailingToken.Span,
+				err:    errors.New("unrecognized token"),
+			})
 		}
 	} else if expr == nil && err == nil {
-		err = fmt.Errorf("%s: empty query", linecol(query, len(query)))
+		err = &parseError{
+			source: p.source,
+			span:   indexSpan(len(query)),
+			err:    errors.New("empty query"),
+		}
 	}
 	if err != nil {
 		return expr, fmt.Errorf("parse pipeline query language: %w", err)
@@ -37,9 +49,9 @@ func Parse(query string) (*TabularExpr, error) {
 }
 
 func (p *parser) tabularExpr() (*TabularExpr, error) {
-	tableName := p.ident()
-	if tableName == nil {
-		return nil, nil
+	tableName, err := p.ident()
+	if err != nil {
+		return nil, err
 	}
 	expr := &TabularExpr{
 		Source: &TableRef{Table: tableName},
@@ -58,12 +70,20 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 
 		operatorName, ok := p.next()
 		if !ok {
-			returnedError = joinErrors(returnedError, fmt.Errorf("%s: missing operator name after pipe", linecol(p.source, pipeToken.Span.End)))
+			returnedError = joinErrors(returnedError, &parseError{
+				source: p.source,
+				span:   pipeToken.Span,
+				err:    errors.New("missing operator name after pipe"),
+			})
 			return expr, returnedError
 		}
 		if operatorName.Kind != TokenIdentifier {
 			// TODO(soon): Skip ahead to next pipe.
-			returnedError = joinErrors(returnedError, fmt.Errorf("%s: expected operator name, got '%s'", linecol(p.source, operatorName.Span.Start), spanString(p.source, operatorName.Span)))
+			returnedError = joinErrors(returnedError, &parseError{
+				source: p.source,
+				span:   operatorName.Span,
+				err:    fmt.Errorf("expected operator name, got '%s'", spanString(p.source, operatorName.Span)),
+			})
 			return expr, returnedError
 		}
 		switch operatorName.Value {
@@ -75,7 +95,11 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 			returnedError = joinErrors(returnedError, err)
 		default:
 			// TODO(soon): Skip ahead to next pipe.
-			returnedError = joinErrors(returnedError, fmt.Errorf("%s: unknown operator name %q", linecol(p.source, operatorName.Span.Start), operatorName.Value))
+			returnedError = joinErrors(returnedError, &parseError{
+				source: p.source,
+				span:   operatorName.Span,
+				err:    fmt.Errorf("unknown operator name %q", operatorName.Value),
+			})
 			return expr, returnedError
 		}
 	}
@@ -89,19 +113,27 @@ func (p *parser) countOperator(pipe, keyword Token) (*CountOperator, error) {
 	}, nil
 }
 
-func (p *parser) ident() *Ident {
+func (p *parser) ident() (*Ident, error) {
 	tok, ok := p.next()
 	if !ok {
-		return nil
+		return nil, &parseError{
+			source: p.source,
+			span:   indexSpan(len(p.source)),
+			err:    notFoundError{errors.New("expected identifier, got EOF")},
+		}
 	}
 	if tok.Kind != TokenIdentifier && tok.Kind != TokenQuotedIdentifier {
 		p.prev()
-		return nil
+		return nil, &parseError{
+			source: p.source,
+			span:   indexSpan(len(p.source)),
+			err:    notFoundError{fmt.Errorf("expected identifier, got %q", spanString(p.source, tok.Span))},
+		}
 	}
 	return &Ident{
 		Name:      tok.Value,
 		TokenSpan: tok.Span,
-	}
+	}, nil
 }
 
 func (p *parser) next() (Token, bool) {
@@ -117,8 +149,23 @@ func (p *parser) prev() {
 	p.pos--
 }
 
-func linecol(source string, pos int) string {
-	line, col := 1, 1
+type parseError struct {
+	source string
+	span   Span
+	err    error
+}
+
+func (e *parseError) Error() string {
+	line, col := linecol(e.source, e.span.Start)
+	return fmt.Sprintf("%d:%d: %s", line, col, e.err.Error())
+}
+
+func (e *parseError) Unwrap() error {
+	return e.err
+}
+
+func linecol(source string, pos int) (line, col int) {
+	line, col = 1, 1
 	for _, c := range source[:pos] {
 		switch c {
 		case '\n':
@@ -132,7 +179,7 @@ func linecol(source string, pos int) string {
 			col++
 		}
 	}
-	return fmt.Sprintf("%d:%d", line, col)
+	return
 }
 
 func joinErrors(args ...error) error {
@@ -154,4 +201,21 @@ func joinErrors(args ...error) error {
 		return nil
 	}
 	return errors.Join(errorList...)
+}
+
+// notFoundError is a sentinel for a production that did not parse anything.
+type notFoundError struct {
+	err error
+}
+
+func isNotFound(err error) bool {
+	return errors.As(err, new(notFoundError))
+}
+
+func (e notFoundError) Error() string {
+	return e.err.Error()
+}
+
+func (e notFoundError) Unwrap() error {
+	return e.err
 }

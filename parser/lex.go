@@ -622,6 +622,14 @@ type Span struct {
 	End int
 }
 
+func newSpan(start, end int) Span {
+	return Span{Start: start, End: end}
+}
+
+func indexSpan(i int) Span {
+	return Span{Start: i, End: i}
+}
+
 // IsValid reports whether the span has a non-negative length
 // and non-negative indices.
 func (span Span) IsValid() bool {
