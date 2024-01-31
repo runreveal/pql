@@ -371,6 +371,17 @@ func TestScan(t *testing.T) {
 				{Kind: TokenString, Span: newSpan(9, 14), Value: "xyz"},
 			},
 		},
+		{
+			name:  "ExpressionList",
+			query: "a, b, c",
+			want: []Token{
+				{Kind: TokenIdentifier, Span: newSpan(0, 1), Value: "a"},
+				{Kind: TokenComma, Span: newSpan(1, 2)},
+				{Kind: TokenIdentifier, Span: newSpan(3, 4), Value: "b"},
+				{Kind: TokenComma, Span: newSpan(4, 5)},
+				{Kind: TokenIdentifier, Span: newSpan(6, 7), Value: "c"},
+			},
+		},
 	}
 
 	ignoreErrorValues := cmp.FilterValues(func(tok1, tok2 Token) bool {

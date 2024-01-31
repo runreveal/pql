@@ -44,6 +44,9 @@ const (
 	// TokenDot is a period character (".").
 	// The Value will be the empty string.
 	TokenDot
+	// TokenDot is a comma character (",").
+	// The Value will be the empty string.
+	TokenComma
 	// TokenPlus is a single plus character ("+").
 	// The Value will be the empty string.
 	TokenPlus
@@ -144,6 +147,11 @@ func Scan(query string) []Token {
 		case isDigit(c) || c == '.':
 			s.prev()
 			tokens = append(tokens, s.numberOrDot())
+		case c == ',':
+			tokens = append(tokens, Token{
+				Kind: TokenComma,
+				Span: newSpan(start, s.pos),
+			})
 		case c == '"' || c == '\'':
 			s.prev()
 			tokens = append(tokens, s.string())
@@ -622,6 +630,10 @@ func newSpan(start, end int) Span {
 
 func indexSpan(i int) Span {
 	return Span{Start: i, End: i}
+}
+
+func nullSpan() Span {
+	return Span{Start: -1, End: -1}
 }
 
 // IsValid reports whether the span has a non-negative length

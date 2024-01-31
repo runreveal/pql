@@ -16,39 +16,40 @@ func _() {
 	_ = x[TokenOr-6]
 	_ = x[TokenPipe-7]
 	_ = x[TokenDot-8]
-	_ = x[TokenPlus-9]
-	_ = x[TokenMinus-10]
-	_ = x[TokenStar-11]
-	_ = x[TokenSlash-12]
-	_ = x[TokenMod-13]
-	_ = x[TokenAssign-14]
-	_ = x[TokenEq-15]
-	_ = x[TokenNE-16]
-	_ = x[TokenLT-17]
-	_ = x[TokenLE-18]
-	_ = x[TokenGT-19]
-	_ = x[TokenGE-20]
-	_ = x[TokenCaseInsensitiveEq-21]
-	_ = x[TokenCaseInsensitiveNE-22]
-	_ = x[TokenLParen-23]
-	_ = x[TokenRParen-24]
+	_ = x[TokenComma-9]
+	_ = x[TokenPlus-10]
+	_ = x[TokenMinus-11]
+	_ = x[TokenStar-12]
+	_ = x[TokenSlash-13]
+	_ = x[TokenMod-14]
+	_ = x[TokenAssign-15]
+	_ = x[TokenEq-16]
+	_ = x[TokenNE-17]
+	_ = x[TokenLT-18]
+	_ = x[TokenLE-19]
+	_ = x[TokenGT-20]
+	_ = x[TokenGE-21]
+	_ = x[TokenCaseInsensitiveEq-22]
+	_ = x[TokenCaseInsensitiveNE-23]
+	_ = x[TokenLParen-24]
+	_ = x[TokenRParen-25]
 	_ = x[TokenError - -1]
 }
 
 const (
 	_TokenKind_name_0 = "TokenError"
-	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenNumberTokenStringTokenAndTokenOrTokenPipeTokenDotTokenPlusTokenMinusTokenStarTokenSlashTokenModTokenAssignTokenEqTokenNETokenLTTokenLETokenGTTokenGETokenCaseInsensitiveEqTokenCaseInsensitiveNETokenLParenTokenRParen"
+	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenNumberTokenStringTokenAndTokenOrTokenPipeTokenDotTokenCommaTokenPlusTokenMinusTokenStarTokenSlashTokenModTokenAssignTokenEqTokenNETokenLTTokenLETokenGTTokenGETokenCaseInsensitiveEqTokenCaseInsensitiveNETokenLParenTokenRParen"
 )
 
 var (
-	_TokenKind_index_1 = [...]uint8{0, 15, 36, 47, 58, 66, 73, 82, 90, 99, 109, 118, 128, 136, 147, 154, 161, 168, 175, 182, 189, 211, 233, 244, 255}
+	_TokenKind_index_1 = [...]uint16{0, 15, 36, 47, 58, 66, 73, 82, 90, 100, 109, 119, 128, 138, 146, 157, 164, 171, 178, 185, 192, 199, 221, 243, 254, 265}
 )
 
 func (i TokenKind) String() string {
 	switch {
 	case i == -1:
 		return _TokenKind_name_0
-	case 1 <= i && i <= 24:
+	case 1 <= i && i <= 25:
 		i -= 1
 		return _TokenKind_name_1[_TokenKind_index_1[i]:_TokenKind_index_1[i+1]]
 	default:
