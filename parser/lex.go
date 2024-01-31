@@ -150,7 +150,7 @@ func Scan(query string) []Token {
 		case c == '|':
 			tokens = append(tokens, Token{
 				Kind: TokenPipe,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			})
 		case c == '[':
 			s.prev()
@@ -158,12 +158,12 @@ func Scan(query string) []Token {
 		case c == '(':
 			tokens = append(tokens, Token{
 				Kind: TokenLParen,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			})
 		case c == ')':
 			tokens = append(tokens, Token{
 				Kind: TokenRParen,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			})
 		case c == '=':
 			c, ok := s.next()
@@ -171,18 +171,18 @@ func Scan(query string) []Token {
 			case ok && c == '=':
 				tokens = append(tokens, Token{
 					Kind: TokenEq,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 			case ok && c == '~':
 				tokens = append(tokens, Token{
 					Kind: TokenCaseInsensitiveEq,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 			default:
 				s.prev()
 				tokens = append(tokens, Token{
 					Kind: TokenAssign,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 			}
 		case c == '!':
@@ -191,35 +191,35 @@ func Scan(query string) []Token {
 			case ok && c == '=':
 				tokens = append(tokens, Token{
 					Kind: TokenNE,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 			case ok && c == '~':
 				tokens = append(tokens, Token{
 					Kind: TokenCaseInsensitiveNE,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 			default:
 				s.prev()
 				// TODO(maybe): Turn this into logical inversion?
 				// KQL seems to use the not() function.
 				tokens = append(tokens,
-					errorToken(Span{Start: start, End: s.pos}, "unrecognized token '!'"),
+					errorToken(newSpan(start, s.pos), "unrecognized token '!'"),
 				)
 			}
 		case c == '+':
 			tokens = append(tokens, Token{
 				Kind: TokenPlus,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			})
 		case c == '-':
 			tokens = append(tokens, Token{
 				Kind: TokenMinus,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			})
 		case c == '*':
 			tokens = append(tokens, Token{
 				Kind: TokenStar,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			})
 		case c == '/':
 			// Check for double-slash comment.
@@ -227,7 +227,7 @@ func Scan(query string) []Token {
 			if !ok {
 				tokens = append(tokens, Token{
 					Kind: TokenSlash,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 				continue
 			}
@@ -244,41 +244,41 @@ func Scan(query string) []Token {
 			s.prev()
 			tokens = append(tokens, Token{
 				Kind: TokenSlash,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			})
 		case c == '%':
 			tokens = append(tokens, Token{
 				Kind: TokenMod,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			})
 		case c == '<':
 			if c, ok := s.next(); ok && c == '=' {
 				tokens = append(tokens, Token{
 					Kind: TokenLE,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 			} else {
 				s.prev()
 				tokens = append(tokens, Token{
 					Kind: TokenLT,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 			}
 		case c == '>':
 			if c, ok := s.next(); ok && c == '=' {
 				tokens = append(tokens, Token{
 					Kind: TokenGE,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 			} else {
 				s.prev()
 				tokens = append(tokens, Token{
 					Kind: TokenGT,
-					Span: Span{Start: start, End: s.pos},
+					Span: newSpan(start, s.pos),
 				})
 			}
 		default:
-			span := Span{Start: start, End: s.pos}
+			span := newSpan(start, s.pos)
 			tokens = append(tokens, errorToken(span, "unrecognized character %q", spanString(query, span)))
 		}
 	}
@@ -305,7 +305,7 @@ func (s *scanner) ident() Token {
 	}
 	tok := Token{
 		Kind: TokenIdentifier,
-		Span: Span{Start: start, End: s.pos},
+		Span: newSpan(start, s.pos),
 	}
 	tok.Value = spanString(s.s, tok.Span)
 	if kind, ok := keywords[tok.Value]; ok {
@@ -316,32 +316,28 @@ func (s *scanner) ident() Token {
 }
 
 func (s *scanner) quotedIdent() Token {
-	span := Span{Start: s.pos}
+	start := s.pos
 	if c, ok := s.next(); !ok || c != '[' {
-		span.End = s.pos
-		return errorToken(span, "parse quoted identifier: expected '[', found %q", c)
+		return errorToken(newSpan(start, s.pos), "parse quoted identifier: expected '[', found %q", c)
 	}
 	quoteChar, ok := s.next()
 	if !ok {
-		span.End = s.pos
-		return errorToken(span, "parse quoted identifier: expected '[', found %q", quoteChar)
+		return errorToken(newSpan(start, s.pos), "parse quoted identifier: expected '[', found %q", quoteChar)
 	}
 	if quoteChar != '\'' && quoteChar != '"' {
 		s.prev()
-		span.End = s.pos
-		return errorToken(span, "parse quoted identifier: expected ' or \", found %q", quoteChar)
+		return errorToken(newSpan(start, s.pos), "parse quoted identifier: expected ' or \", found %q", quoteChar)
 	}
 
 	for {
 		// Check for terminator.
 		tail := s.s[s.pos:]
 		if len(tail) >= 2 && tail[0] == byte(quoteChar) && tail[1] == ']' {
-			value := s.s[span.Start+len(`["`) : s.pos]
+			value := s.s[start+len(`["`) : s.pos]
 			s.pos += len(`"]`)
-			span.End = s.pos
 			return Token{
 				Kind:  TokenQuotedIdentifier,
-				Span:  span,
+				Span:  newSpan(start, s.pos),
 				Value: value,
 			}
 		}
@@ -349,13 +345,11 @@ func (s *scanner) quotedIdent() Token {
 		// Now check for end of line or end of query.
 		c, ok := s.next()
 		if !ok {
-			span.End = s.pos
-			return errorToken(span, "parse quoted identifier: unexpected EOF")
+			return errorToken(newSpan(start, s.pos), "parse quoted identifier: unexpected EOF")
 		}
 		if c == '\n' {
 			s.prev()
-			span.End = s.pos
-			return errorToken(span, "parse quoted identifier: unexpected end of line")
+			return errorToken(newSpan(start, s.pos), "parse quoted identifier: unexpected end of line")
 		}
 	}
 }
@@ -364,7 +358,7 @@ func (s *scanner) numberOrDot() Token {
 	start := s.pos
 	c, ok := s.next()
 	if !ok {
-		return errorToken(Span{Start: start, End: start}, "parse numeric literal: unexpected EOF")
+		return errorToken(indexSpan(start), "parse numeric literal: unexpected EOF")
 	}
 
 	// First character.
@@ -375,7 +369,7 @@ func (s *scanner) numberOrDot() Token {
 		if !ok {
 			return Token{
 				Kind:  TokenNumber,
-				Span:  Span{Start: start, End: s.pos},
+				Span:  newSpan(start, s.pos),
 				Value: "0",
 			}
 		}
@@ -385,7 +379,7 @@ func (s *scanner) numberOrDot() Token {
 		case c == 'e' || c == 'E':
 			s.prev()
 			s.numberExponent()
-			span := Span{Start: start, End: s.pos}
+			span := newSpan(start, s.pos)
 			return Token{
 				Kind:  TokenNumber,
 				Span:  span,
@@ -399,7 +393,7 @@ func (s *scanner) numberOrDot() Token {
 				s.setPos(start + 2)
 				return Token{
 					Kind:  TokenError,
-					Span:  Span{Start: start, End: s.pos},
+					Span:  newSpan(start, s.pos),
 					Value: "invalid hex literal",
 				}
 			}
@@ -414,7 +408,7 @@ func (s *scanner) numberOrDot() Token {
 					break
 				}
 			}
-			span := Span{Start: start, End: s.pos}
+			span := newSpan(start, s.pos)
 			n, err := strconv.ParseUint(s.s[hexDigitStart:s.pos], 16, 64)
 			if err != nil {
 				return errorToken(span, "parse hex literal: %v", err)
@@ -434,20 +428,20 @@ func (s *scanner) numberOrDot() Token {
 		if !ok {
 			return Token{
 				Kind: TokenDot,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			}
 		}
 		if !isDigit(c) {
 			s.prev()
 			return Token{
 				Kind: TokenDot,
-				Span: Span{Start: start, End: s.pos},
+				Span: newSpan(start, s.pos),
 			}
 		}
 	case !isDigit(c):
 		end := s.pos
 		s.prev()
-		return errorToken(Span{Start: start, End: end}, "parse numeric literal: unexpected character %q", c)
+		return errorToken(newSpan(start, end), "parse numeric literal: unexpected character %q", c)
 	}
 
 	// Subsequent decimal digits.
@@ -455,7 +449,7 @@ func (s *scanner) numberOrDot() Token {
 		c, ok := s.next()
 		switch {
 		case !ok:
-			span := Span{Start: start, End: s.pos}
+			span := newSpan(start, s.pos)
 			return Token{
 				Kind:  TokenNumber,
 				Span:  span,
@@ -466,7 +460,7 @@ func (s *scanner) numberOrDot() Token {
 		case !isDigit(c):
 			s.prev()
 			s.numberExponent()
-			span := Span{Start: start, End: s.pos}
+			span := newSpan(start, s.pos)
 			return Token{
 				Kind:  TokenNumber,
 				Span:  span,
@@ -535,11 +529,11 @@ func (s *scanner) string() Token {
 	start := s.pos
 	quoteChar, ok := s.next()
 	if !ok {
-		return errorToken(Span{Start: start, End: start}, "unexpected EOF (expected string)")
+		return errorToken(indexSpan(start), "unexpected EOF (expected string)")
 	}
 	if quoteChar != '\'' && quoteChar != '"' {
 		s.prev()
-		return errorToken(Span{Start: start, End: start}, "unexpected %q (expected string)", quoteChar)
+		return errorToken(indexSpan(start), "unexpected %q (expected string)", quoteChar)
 	}
 
 	valueStart := s.pos
@@ -547,7 +541,7 @@ func (s *scanner) string() Token {
 	for {
 		c, ok := s.next()
 		if !ok {
-			return errorToken(Span{Start: start, End: s.pos}, "unterminated string")
+			return errorToken(newSpan(start, s.pos), "unterminated string")
 		}
 		switch c {
 		case quoteChar:
@@ -559,12 +553,12 @@ func (s *scanner) string() Token {
 			}
 			return Token{
 				Kind:  TokenString,
-				Span:  Span{Start: start, End: s.pos},
+				Span:  newSpan(start, s.pos),
 				Value: value,
 			}
 		case '\n':
 			s.prev()
-			return errorToken(Span{Start: start, End: s.pos}, "unterminated string")
+			return errorToken(newSpan(start, s.pos), "unterminated string")
 		case '\\':
 			if valueBuilder == nil {
 				valueBuilder = new(strings.Builder)
@@ -572,12 +566,12 @@ func (s *scanner) string() Token {
 			}
 			c, ok := s.next()
 			if !ok {
-				return errorToken(Span{Start: start, End: s.pos}, "unterminated string")
+				return errorToken(newSpan(start, s.pos), "unterminated string")
 			}
 			switch c {
 			case '\n':
 				s.prev()
-				return errorToken(Span{Start: start, End: s.pos}, "unterminated string")
+				return errorToken(newSpan(start, s.pos), "unterminated string")
 			case 'n':
 				valueBuilder.WriteRune('\n')
 			case 't':

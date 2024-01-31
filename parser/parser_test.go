@@ -17,8 +17,8 @@ func TestParse(t *testing.T) {
 			want: &TabularExpr{
 				Source: &TableRef{
 					Table: &Ident{
-						Name:      "StormEvents",
-						TokenSpan: Span{Start: 0, End: 11},
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
 					},
 				},
 			},
@@ -28,14 +28,14 @@ func TestParse(t *testing.T) {
 			want: &TabularExpr{
 				Source: &TableRef{
 					Table: &Ident{
-						Name:      "StormEvents",
-						TokenSpan: Span{Start: 0, End: 11},
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
 					},
 				},
 				Operators: []TabularOperator{
 					&CountOperator{
-						Pipe:    Span{Start: 12, End: 13},
-						Keyword: Span{Start: 14, End: 19},
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
 					},
 				},
 			},
@@ -45,18 +45,18 @@ func TestParse(t *testing.T) {
 			want: &TabularExpr{
 				Source: &TableRef{
 					Table: &Ident{
-						Name:      "StormEvents",
-						TokenSpan: Span{Start: 0, End: 11},
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
 					},
 				},
 				Operators: []TabularOperator{
 					&CountOperator{
-						Pipe:    Span{Start: 12, End: 13},
-						Keyword: Span{Start: 14, End: 19},
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
 					},
 					&CountOperator{
-						Pipe:    Span{Start: 20, End: 21},
-						Keyword: Span{Start: 22, End: 27},
+						Pipe:    newSpan(20, 21),
+						Keyword: newSpan(22, 27),
 					},
 				},
 			},

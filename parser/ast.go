@@ -7,12 +7,12 @@ type Node interface {
 
 // An Ident node represents an identifier.
 type Ident struct {
-	Name      string
-	TokenSpan Span
+	Name     string
+	NameSpan Span
 }
 
 func (id *Ident) Span() Span {
-	return id.TokenSpan
+	return id.NameSpan
 }
 
 // TabularExpr is a query expression that produces a table.
@@ -58,8 +58,5 @@ type CountOperator struct {
 func (op *CountOperator) tabularOperator() {}
 
 func (op *CountOperator) Span() Span {
-	return Span{
-		Start: op.Pipe.Start,
-		End:   op.Keyword.End,
-	}
+	return newSpan(op.Pipe.Start, op.Keyword.End)
 }

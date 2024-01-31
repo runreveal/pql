@@ -131,8 +131,8 @@ func (p *parser) ident() (*Ident, error) {
 		}
 	}
 	return &Ident{
-		Name:      tok.Value,
-		TokenSpan: tok.Span,
+		Name:     tok.Value,
+		NameSpan: tok.Span,
 	}, nil
 }
 
