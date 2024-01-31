@@ -382,6 +382,16 @@ func TestScan(t *testing.T) {
 				{Kind: TokenIdentifier, Span: newSpan(6, 7), Value: "c"},
 			},
 		},
+		{
+			name:  "WhereFilter",
+			query: "StormEvents | where true",
+			want: []Token{
+				{Kind: TokenIdentifier, Span: newSpan(0, 11), Value: "StormEvents"},
+				{Kind: TokenPipe, Span: newSpan(12, 13)},
+				{Kind: TokenIdentifier, Span: newSpan(14, 19), Value: "where"},
+				{Kind: TokenIdentifier, Span: newSpan(20, 24), Value: "true"},
+			},
+		},
 	}
 
 	ignoreErrorValues := cmp.FilterValues(func(tok1, tok2 Token) bool {

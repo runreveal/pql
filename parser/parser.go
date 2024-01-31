@@ -4,6 +4,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 type parser struct {
@@ -35,7 +36,7 @@ func Parse(query string) (*TabularExpr, error) {
 				err:    errors.New("unrecognized token"),
 			})
 		}
-	} else if expr == nil && err == nil {
+	} else if isNotFound(err) {
 		err = &parseError{
 			source: p.source,
 			span:   indexSpan(len(query)),
@@ -82,13 +83,19 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 			returnedError = joinErrors(returnedError, &parseError{
 				source: p.source,
 				span:   operatorName.Span,
-				err:    fmt.Errorf("expected operator name, got '%s'", spanString(p.source, operatorName.Span)),
+				err:    fmt.Errorf("expected operator name, got %s", formatToken(p.source, operatorName)),
 			})
 			return expr, returnedError
 		}
 		switch operatorName.Value {
 		case "count":
 			op, err := p.countOperator(pipeToken, operatorName)
+			if op != nil {
+				expr.Operators = append(expr.Operators, op)
+			}
+			returnedError = joinErrors(returnedError, err)
+		case "where", "filter":
+			op, err := p.whereOperator(pipeToken, operatorName)
 			if op != nil {
 				expr.Operators = append(expr.Operators, op)
 			}
@@ -113,21 +120,186 @@ func (p *parser) countOperator(pipe, keyword Token) (*CountOperator, error) {
 	}, nil
 }
 
-func (p *parser) ident() (*Ident, error) {
+func (p *parser) whereOperator(pipe, keyword Token) (*WhereOperator, error) {
+	x, err := p.expr()
+	err = makeErrorOpaque(err)
+	return &WhereOperator{
+		Pipe:      pipe.Span,
+		Keyword:   keyword.Span,
+		Predicate: x,
+	}, err
+}
+
+// exprList parses one or more comma-separated expressions.
+func (p *parser) exprList() ([]Expr, error) {
+	first, err := p.expr()
+	if err != nil {
+		return nil, err
+	}
+	result := []Expr{first}
+	for {
+		tok, ok := p.next()
+		if !ok {
+			return result, nil
+		}
+		if tok.Kind != TokenComma {
+			p.prev()
+			return result, nil
+		}
+		x, err := p.expr()
+		if x != nil {
+			result = append(result, x)
+		}
+		if err != nil {
+			// If there's a notFoundError, we want to mask it from the caller.
+			return result, makeErrorOpaque(err)
+		}
+	}
+}
+
+func (p *parser) expr() (Expr, error) {
+	// TODO(now)
+	return p.unaryExpr()
+}
+
+func (p *parser) unaryExpr() (Expr, error) {
 	tok, ok := p.next()
 	if !ok {
 		return nil, &parseError{
 			source: p.source,
 			span:   indexSpan(len(p.source)),
-			err:    notFoundError{errors.New("expected identifier, got EOF")},
+			err:    notFoundError{errors.New("expected expression, got EOF")},
 		}
 	}
+	switch tok.Kind {
+	case TokenPlus, TokenMinus:
+		x, err := p.primaryExpr()
+		err = makeErrorOpaque(err) // already parsed a symbol
+		return &UnaryExpr{
+			OpSpan: tok.Span,
+			Op:     tok.Kind,
+			X:      x,
+		}, err
+	default:
+		p.prev()
+		return p.primaryExpr()
+	}
+}
+
+func (p *parser) primaryExpr() (Expr, error) {
+	tok, ok := p.next()
+	if !ok {
+		return nil, &parseError{
+			source: p.source,
+			span:   indexSpan(len(p.source)),
+			err:    notFoundError{errors.New("expected expression, got EOF")},
+		}
+	}
+	switch tok.Kind {
+	case TokenNumber, TokenString:
+		return &BasicLit{
+			ValueSpan: tok.Span,
+			Kind:      tok.Kind,
+			Value:     tok.Value,
+		}, nil
+	case TokenIdentifier:
+		// Look ahead for opening parenthesis for a function call.
+		nextTok, ok := p.next()
+		if !ok {
+			return &Ident{
+				NameSpan: tok.Span,
+				Name:     tok.Value,
+			}, nil
+		}
+
+		if nextTok.Kind == TokenLParen {
+			args, err := p.exprList()
+			if isNotFound(err) {
+				err = nil
+			}
+			finalTok, _ := p.next()
+			if finalTok.Kind == TokenComma {
+				finalTok, _ = p.next()
+			}
+			rparen := nullSpan()
+			if finalTok.Kind == TokenRParen {
+				rparen = finalTok.Span
+			} else {
+				err = joinErrors(err, &parseError{
+					source: p.source,
+					span:   finalTok.Span,
+					err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, finalTok)),
+				})
+			}
+			return &CallExpr{
+				Func: &Ident{
+					Name:     tok.Value,
+					NameSpan: tok.Span,
+				},
+				Lparen: nextTok.Span,
+				Args:   args,
+				Rparen: rparen,
+			}, err
+		}
+
+		p.prev()
+		return &Ident{
+			NameSpan: tok.Span,
+			Name:     tok.Value,
+		}, nil
+	case TokenQuotedIdentifier:
+		p.prev()
+		return p.ident()
+	case TokenLParen:
+		x, err := p.expr()
+		endTok, ok := p.next()
+		if !ok {
+			err2 := &parseError{
+				source: p.source,
+				span:   indexSpan(len(p.source)),
+				err:    errors.New("expected ')', got EOF"),
+			}
+			return &ParenExpr{
+				Lparen: tok.Span,
+				X:      x,
+				Rparen: nullSpan(),
+			}, joinErrors(err, err2)
+		}
+		if endTok.Kind != TokenRParen {
+			err2 := &parseError{
+				source: p.source,
+				span:   endTok.Span,
+				err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, endTok)),
+			}
+			return &ParenExpr{
+				Lparen: tok.Span,
+				X:      x,
+				Rparen: nullSpan(),
+			}, joinErrors(err, err2)
+		}
+		return &ParenExpr{
+			Lparen: tok.Span,
+			X:      x,
+			Rparen: endTok.Span,
+		}, err
+	default:
+		p.prev()
+		return nil, &parseError{
+			source: p.source,
+			span:   tok.Span,
+			err:    notFoundError{fmt.Errorf("expected expression, got %s", formatToken(p.source, tok))},
+		}
+	}
+}
+
+func (p *parser) ident() (*Ident, error) {
+	tok, _ := p.next()
 	if tok.Kind != TokenIdentifier && tok.Kind != TokenQuotedIdentifier {
 		p.prev()
 		return nil, &parseError{
 			source: p.source,
 			span:   indexSpan(len(p.source)),
-			err:    notFoundError{fmt.Errorf("expected identifier, got %q", spanString(p.source, tok.Span))},
+			err:    notFoundError{fmt.Errorf("expected identifier, got %s", formatToken(p.source, tok))},
 		}
 	}
 	return &Ident{
@@ -138,7 +310,11 @@ func (p *parser) ident() (*Ident, error) {
 
 func (p *parser) next() (Token, bool) {
 	if p.pos >= len(p.tokens) {
-		return Token{}, false
+		return Token{
+			Kind:  TokenError,
+			Span:  indexSpan(len(p.source)),
+			Value: "EOF",
+		}, false
 	}
 	tok := p.tokens[p.pos]
 	p.pos++
@@ -147,6 +323,19 @@ func (p *parser) next() (Token, bool) {
 
 func (p *parser) prev() {
 	p.pos--
+}
+
+func formatToken(source string, tok Token) string {
+	if tok.Span.Start == len(source) && tok.Span.End == len(source) {
+		return "EOF"
+	}
+	if tok.Span.Len() == 0 {
+		if tok.Kind == TokenError {
+			return "<scan error>"
+		}
+		return "''"
+	}
+	return "'" + spanString(source, tok.Span) + "'"
 }
 
 type parseError struct {
@@ -188,9 +377,7 @@ func joinErrors(args ...error) error {
 		if err == nil {
 			continue
 		}
-		unwrapper, ok := err.(interface {
-			Unwrap() []error
-		})
+		unwrapper, ok := err.(multiUnwrapper)
 		if ok {
 			errorList = append(errorList, unwrapper.Unwrap()...)
 		} else {
@@ -201,6 +388,31 @@ func joinErrors(args ...error) error {
 		return nil
 	}
 	return errors.Join(errorList...)
+}
+
+// opaqueError is an error that does not unwrap its underlying error.
+type opaqueError struct {
+	error
+}
+
+func makeErrorOpaque(err error) error {
+	switch e := err.(type) {
+	case nil:
+		return nil
+	case *parseError:
+		err2 := new(parseError)
+		*err2 = *e
+		err2.err = opaqueError{e.err}
+		return err2
+	case multiUnwrapper:
+		errorList := slices.Clone(e.Unwrap())
+		for i, err := range errorList {
+			errorList[i] = opaqueError{err}
+		}
+		return errors.Join(errorList...)
+	default:
+		return opaqueError{err}
+	}
 }
 
 // notFoundError is a sentinel for a production that did not parse anything.
@@ -218,4 +430,8 @@ func (e notFoundError) Error() string {
 
 func (e notFoundError) Unwrap() error {
 	return e.err
+}
+
+type multiUnwrapper interface {
+	Unwrap() []error
 }

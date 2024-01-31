@@ -1,5 +1,10 @@
 package parser
 
+import (
+	"strconv"
+	"strings"
+)
+
 // Node is the interface implemented by all AST node types.
 type Node interface {
 	Span() Span
@@ -14,6 +19,8 @@ type Ident struct {
 func (id *Ident) Span() Span {
 	return id.NameSpan
 }
+
+func (id *Ident) expression() {}
 
 // TabularExpr is a query expression that produces a table.
 type TabularExpr struct {
@@ -60,3 +67,129 @@ func (op *CountOperator) tabularOperator() {}
 func (op *CountOperator) Span() Span {
 	return newSpan(op.Pipe.Start, op.Keyword.End)
 }
+
+// WhereOperator represents a `| where` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type WhereOperator struct {
+	Pipe      Span
+	Keyword   Span
+	Predicate Expr
+}
+
+func (op *WhereOperator) tabularOperator() {}
+
+func (op *WhereOperator) Span() Span {
+	return newSpan(op.Pipe.Start, op.Predicate.Span().End)
+}
+
+// Expr is the interface implemented by all expression AST node types.
+type Expr interface {
+	Node
+	expression()
+}
+
+// A BinaryExpr represents a binary expression.
+type BinaryExpr struct {
+	X      Expr
+	OpSpan Span
+	Op     TokenKind
+	Y      Expr
+}
+
+func (expr *BinaryExpr) Span() Span {
+	return Span{Start: expr.X.Span().Start, End: expr.Y.Span().End}
+}
+
+func (expr *BinaryExpr) expression() {}
+
+// A UnaryExpr represents a unary expression.
+type UnaryExpr struct {
+	OpSpan Span
+	Op     TokenKind
+	X      Expr
+}
+
+func (expr *UnaryExpr) Span() Span {
+	return Span{Start: expr.OpSpan.Start, End: expr.X.Span().End}
+}
+
+func (expr *UnaryExpr) expression() {}
+
+// A ParenExpr represents a parenthized expression.
+type ParenExpr struct {
+	Lparen Span
+	X      Expr
+	Rparen Span
+}
+
+func (expr *ParenExpr) Span() Span {
+	return Span{Start: expr.Lparen.Start, End: expr.Rparen.End}
+}
+
+func (expr *ParenExpr) expression() {}
+
+// A BasicLit node represents a numeric or string literal.
+type BasicLit struct {
+	ValueSpan Span
+	Kind      TokenKind // [TokenNumber] or [TokenString]
+	Value     string
+}
+
+func (lit *BasicLit) Span() Span {
+	return lit.ValueSpan
+}
+
+// IsFloat reports whether the literal is a floating point literal.
+func (lit *BasicLit) IsFloat() bool {
+	return lit.Kind == TokenNumber && strings.ContainsAny(lit.Value, ".eE")
+}
+
+// IsInteger reports whether the literal is a integer literal.
+func (lit *BasicLit) IsInteger() bool {
+	return lit.Kind == TokenNumber && !lit.IsFloat()
+}
+
+// Uint64 returns the numeric value of the literal as an unsigned integer.
+// It returns 0 if the literal's kind is not [TokenNumber].
+func (lit *BasicLit) Uint64() uint64 {
+	if lit.Kind != TokenNumber {
+		return 0
+	}
+	if lit.IsFloat() {
+		return uint64(lit.Float64())
+	}
+	x, err := strconv.ParseUint(lit.Value, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return x
+}
+
+// Float64 returns the numeric value of the literal as an unsigned integer.
+// It returns 0 if the literal's kind is not [TokenNumber].
+func (lit *BasicLit) Float64() float64 {
+	if lit.Kind != TokenNumber {
+		return 0
+	}
+	x, err := strconv.ParseFloat(lit.Value, 64)
+	if err != nil {
+		return 0
+	}
+	return x
+}
+
+func (lit *BasicLit) expression() {}
+
+// A CallExpr node represents an unquoted identifier followed by an argument list.
+type CallExpr struct {
+	Func   *Ident
+	Lparen Span
+	Args   []Expr
+	Rparen Span
+}
+
+func (call *CallExpr) Span() Span {
+	return Span{Start: call.Func.NameSpan.Start, End: call.Rparen.End}
+}
+
+func (call *CallExpr) expression() {}
