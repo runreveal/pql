@@ -11,7 +11,13 @@ func TestParse(t *testing.T) {
 	tests := []struct {
 		query string
 		want  *TabularExpr
+		err   bool
 	}{
+		{
+			query: "",
+			want:  nil,
+			err:   true,
+		},
 		{
 			query: "StormEvents",
 			want: &TabularExpr{
@@ -201,12 +207,44 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			query: `StormEvents | count x | where true`,
+			err:   true,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&CountOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
+					},
+					&WhereOperator{
+						Pipe:    newSpan(22, 23),
+						Keyword: newSpan(24, 29),
+						Predicate: &Ident{
+							Name:     "true",
+							NameSpan: newSpan(30, 34),
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		got, err := Parse(test.query)
 		if err != nil {
-			t.Errorf("Parse(%q): %v", test.query, err)
-			continue
+			if test.err {
+				t.Logf("Parse(%q) error (as expected): %v", test.query, err)
+			} else {
+				t.Errorf("Parse(%q) returned unexpected error: %v", test.query, err)
+			}
+		}
+		if err == nil && test.err {
+			t.Errorf("Parse(%q) did not return an error", test.query)
 		}
 		if diff := cmp.Diff(test.want, got, cmpopts.EquateEmpty()); diff != "" {
 			t.Errorf("Parse(%q) (-want +got):\n%s", test.query, diff)

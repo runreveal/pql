@@ -59,14 +59,28 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 	}
 
 	var returnedError error
-	for {
+	for i := 0; ; i++ {
 		pipeToken, ok := p.next()
 		if !ok {
 			break
 		}
 		if pipeToken.Kind != TokenPipe {
 			p.prev()
-			break
+			if i == 0 {
+				returnedError = joinErrors(returnedError, &parseError{
+					source: p.source,
+					span:   pipeToken.Span,
+					err:    errors.New("unknown syntax after table data source"),
+				})
+			} else {
+				returnedError = joinErrors(returnedError, &parseError{
+					source: p.source,
+					span:   pipeToken.Span,
+					err:    errors.New("unknown syntax after operator"),
+				})
+			}
+			p.skipTo(TokenPipe)
+			continue
 		}
 
 		operatorName, ok := p.next()
@@ -76,16 +90,17 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 				span:   pipeToken.Span,
 				err:    errors.New("missing operator name after pipe"),
 			})
-			return expr, returnedError
+			p.skipTo(TokenPipe)
+			continue
 		}
 		if operatorName.Kind != TokenIdentifier {
-			// TODO(soon): Skip ahead to next pipe.
 			returnedError = joinErrors(returnedError, &parseError{
 				source: p.source,
 				span:   operatorName.Span,
 				err:    fmt.Errorf("expected operator name, got %s", formatToken(p.source, operatorName)),
 			})
-			return expr, returnedError
+			p.skipTo(TokenPipe)
+			continue
 		}
 		switch operatorName.Value {
 		case "count":
@@ -101,13 +116,12 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 			}
 			returnedError = joinErrors(returnedError, err)
 		default:
-			// TODO(soon): Skip ahead to next pipe.
 			returnedError = joinErrors(returnedError, &parseError{
 				source: p.source,
 				span:   operatorName.Span,
 				err:    fmt.Errorf("unknown operator name %q", operatorName.Value),
 			})
-			return expr, returnedError
+			p.skipTo(TokenPipe)
 		}
 	}
 	return expr, returnedError
@@ -308,8 +322,43 @@ func (p *parser) ident() (*Ident, error) {
 	}, nil
 }
 
+// skipTo advances the parser to right before the next token of the given kind.
+// It ignores tokens that are in parenthetical groups after the initial parse position.
+// If no such token is found, skipTo advances to EOF.
+func (p *parser) skipTo(search TokenKind) {
+	parenLevel := 0
+	for {
+		tok, ok := p.next()
+		if !ok {
+			return
+		}
+
+		switch tok.Kind {
+		case TokenLParen:
+			if search == TokenLParen {
+				p.prev()
+				return
+			}
+			parenLevel++
+		case TokenRParen:
+			if parenLevel > 0 {
+				parenLevel--
+			} else if search == TokenRParen {
+				p.prev()
+				return
+			}
+		case search:
+			if parenLevel <= 0 {
+				p.prev()
+				return
+			}
+		}
+	}
+}
+
 func (p *parser) next() (Token, bool) {
 	if p.pos >= len(p.tokens) {
+		p.pos = len(p.tokens) + 1 // Once we produce EOF, don't permit rewinding.
 		return Token{
 			Kind:  TokenError,
 			Span:  indexSpan(len(p.source)),
@@ -322,7 +371,11 @@ func (p *parser) next() (Token, bool) {
 }
 
 func (p *parser) prev() {
-	p.pos--
+	// Only allow rewinding to a previous token if it's in valid range,
+	// and once we produce EOF, we will always produce EOF.
+	if p.pos > 0 && p.pos <= len(p.tokens) {
+		p.pos--
+	}
 }
 
 func formatToken(source string, tok Token) string {
