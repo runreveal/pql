@@ -172,8 +172,85 @@ func (p *parser) exprList() ([]Expr, error) {
 }
 
 func (p *parser) expr() (Expr, error) {
-	// TODO(now)
-	return p.unaryExpr()
+	x, err := p.unaryExpr()
+	if err != nil {
+		return x, err
+	}
+	return p.exprBinaryTrail(x, 0)
+}
+
+// exprBinaryTrail parses zero or more (binaryOp, unaryExpr) sequences.
+func (p *parser) exprBinaryTrail(x Expr, minPrecedence int) (Expr, error) {
+	for {
+		op1, ok := p.next()
+		if !ok {
+			return x, nil
+		}
+		precedence1 := operatorPrecedence(op1.Kind)
+		if precedence1 < 0 || precedence1 < minPrecedence {
+			// Not a binary operator or below precedence threshold.
+			p.prev()
+			return x, nil
+		}
+		y, err := p.unaryExpr()
+		if err != nil {
+			return &BinaryExpr{
+				X:      x,
+				OpSpan: op1.Span,
+				Op:     op1.Kind,
+				Y:      y,
+			}, makeErrorOpaque(err)
+		}
+
+		// Resolve any higher precedence operators first.
+		for {
+			op2, ok := p.next()
+			if !ok {
+				break
+			}
+			p.prev()
+
+			precedence2 := operatorPrecedence(op2.Kind)
+			if precedence2 < 0 || precedence2 <= precedence1 {
+				// Not a binary operator or below the precedence of the original operator.
+				break
+			}
+			y, err = p.exprBinaryTrail(y, precedence1+1)
+			if err != nil {
+				return &BinaryExpr{
+					X:      x,
+					OpSpan: op1.Span,
+					Op:     op1.Kind,
+					Y:      y,
+				}, makeErrorOpaque(err)
+			}
+		}
+
+		x = &BinaryExpr{
+			X:      x,
+			OpSpan: op1.Span,
+			Op:     op1.Kind,
+			Y:      y,
+		}
+	}
+}
+
+func operatorPrecedence(op TokenKind) int {
+	switch op {
+	case TokenStar, TokenSlash, TokenMod:
+		return 4
+	case TokenPlus, TokenMinus:
+		return 3
+	case TokenEq, TokenNE, TokenLT, TokenLE, TokenGT, TokenGE,
+		TokenCaseInsensitiveEq, TokenCaseInsensitiveNE:
+		return 2
+	case TokenAnd:
+		return 1
+	case TokenOr:
+		return 0
+	default:
+		return -1
+	}
 }
 
 func (p *parser) unaryExpr() (Expr, error) {

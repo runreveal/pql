@@ -233,6 +233,190 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			query: "StormEvents | where DamageProperty > 0",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
+						Predicate: &BinaryExpr{
+							X: &Ident{
+								Name:     "DamageProperty",
+								NameSpan: newSpan(20, 34),
+							},
+							OpSpan: newSpan(35, 36),
+							Op:     TokenGT,
+							Y: &BasicLit{
+								Kind:      TokenNumber,
+								ValueSpan: newSpan(37, 38),
+								Value:     "0",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			query: "foo | where x / y * z == 1",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "foo",
+						NameSpan: newSpan(0, 3),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(4, 5),
+						Keyword: newSpan(6, 11),
+						Predicate: &BinaryExpr{
+							X: &BinaryExpr{
+								X: &BinaryExpr{
+									X: &Ident{
+										Name:     "x",
+										NameSpan: newSpan(12, 13),
+									},
+									OpSpan: newSpan(14, 15),
+									Op:     TokenSlash,
+									Y: &Ident{
+										Name:     "y",
+										NameSpan: newSpan(16, 17),
+									},
+								},
+								OpSpan: newSpan(18, 19),
+								Op:     TokenStar,
+								Y: &Ident{
+									Name:     "z",
+									NameSpan: newSpan(20, 21),
+								},
+							},
+							OpSpan: newSpan(22, 24),
+							Op:     TokenEq,
+							Y: &BasicLit{
+								Kind:      TokenNumber,
+								Value:     "1",
+								ValueSpan: newSpan(25, 26),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			query: "foo | where x / (y * z) == 1",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "foo",
+						NameSpan: newSpan(0, 3),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(4, 5),
+						Keyword: newSpan(6, 11),
+						Predicate: &BinaryExpr{
+							X: &BinaryExpr{
+								X: &Ident{
+									Name:     "x",
+									NameSpan: newSpan(12, 13),
+								},
+								OpSpan: newSpan(14, 15),
+								Op:     TokenSlash,
+								Y: &ParenExpr{
+									Lparen: newSpan(16, 17),
+									X: &BinaryExpr{
+										X: &Ident{
+											Name:     "y",
+											NameSpan: newSpan(17, 18),
+										},
+										OpSpan: newSpan(19, 20),
+										Op:     TokenStar,
+										Y: &Ident{
+											Name:     "z",
+											NameSpan: newSpan(21, 22),
+										},
+									},
+									Rparen: newSpan(22, 23),
+								},
+							},
+							OpSpan: newSpan(24, 26),
+							Op:     TokenEq,
+							Y: &BasicLit{
+								Kind:      TokenNumber,
+								Value:     "1",
+								ValueSpan: newSpan(27, 28),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			query: "foo | where 2 + 3 * 4 + 5 == 19",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "foo",
+						NameSpan: newSpan(0, 3),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(4, 5),
+						Keyword: newSpan(6, 11),
+						Predicate: &BinaryExpr{
+							X: &BinaryExpr{
+								X: &BinaryExpr{
+									X: &BasicLit{
+										Kind:      TokenNumber,
+										Value:     "2",
+										ValueSpan: newSpan(12, 13),
+									},
+									OpSpan: newSpan(14, 15),
+									Op:     TokenPlus,
+									Y: &BinaryExpr{
+										X: &BasicLit{
+											Kind:      TokenNumber,
+											Value:     "3",
+											ValueSpan: newSpan(16, 17),
+										},
+										OpSpan: newSpan(18, 19),
+										Op:     TokenStar,
+										Y: &BasicLit{
+											Kind:      TokenNumber,
+											Value:     "4",
+											ValueSpan: newSpan(20, 21),
+										},
+									},
+								},
+								OpSpan: newSpan(22, 23),
+								Op:     TokenPlus,
+								Y: &BasicLit{
+									Kind:      TokenNumber,
+									Value:     "5",
+									ValueSpan: newSpan(24, 25),
+								},
+							},
+							OpSpan: newSpan(26, 28),
+							Op:     TokenEq,
+							Y: &BasicLit{
+								Kind:      TokenNumber,
+								Value:     "19",
+								ValueSpan: newSpan(29, 31),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		got, err := Parse(test.query)
