@@ -394,20 +394,19 @@ func TestScan(t *testing.T) {
 		},
 	}
 
-	ignoreErrorValues := cmp.FilterValues(func(tok1, tok2 Token) bool {
-		return tok1.Kind == TokenError || tok2.Kind == TokenError
-	}, cmp.Transformer("ignoreErrorValues", func(tok Token) Token {
-		if tok.Kind == TokenError {
-			tok.Value = ""
-		}
-		return tok
+	equateErrorTokens := cmp.FilterValues(func(tok1, tok2 Token) bool {
+		return tok1.Kind == TokenError && tok2.Kind == TokenError
+	}, cmp.Comparer(func(tok1, tok2 Token) bool {
+		tok1.Value = ""
+		tok2.Value = ""
+		return tok1 == tok2
 	}))
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got := Scan(test.query)
 
-			if diff := cmp.Diff(test.want, got, cmpopts.EquateEmpty(), ignoreErrorValues); diff != "" {
+			if diff := cmp.Diff(test.want, got, cmpopts.EquateEmpty(), equateErrorTokens); diff != "" {
 				t.Errorf("Scan(%q) (-want +got):\n%s", test.query, diff)
 			}
 		})

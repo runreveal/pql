@@ -576,6 +576,13 @@ func TestParse(t *testing.T) {
 			},
 		},
 	}
+
+	equateInvalidSpans := cmp.FilterValues(func(span1, span2 Span) bool {
+		return !span1.IsValid() && !span2.IsValid()
+	}, cmp.Comparer(func(span1, span2 Span) bool {
+		return true
+	}))
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got, err := Parse(test.query)
@@ -589,7 +596,7 @@ func TestParse(t *testing.T) {
 			if err == nil && test.err {
 				t.Errorf("Parse(%q) did not return an error", test.query)
 			}
-			if diff := cmp.Diff(test.want, got, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(test.want, got, cmpopts.EquateEmpty(), equateInvalidSpans); diff != "" {
 				t.Errorf("Parse(%q) (-want +got):\n%s", test.query, diff)
 			}
 		})
