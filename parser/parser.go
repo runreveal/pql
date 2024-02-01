@@ -121,6 +121,12 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 				expr.Operators = append(expr.Operators, op)
 			}
 			returnedError = joinErrors(returnedError, err)
+		case "take", "limit":
+			op, err := p.takeOperator(pipeToken, operatorName)
+			if op != nil {
+				expr.Operators = append(expr.Operators, op)
+			}
+			returnedError = joinErrors(returnedError, err)
 		default:
 			returnedError = joinErrors(returnedError, &parseError{
 				source: p.source,
@@ -258,6 +264,36 @@ func (p *parser) sortOperator(pipe, keyword Token) (*SortOperator, error) {
 			return op, nil
 		}
 	}
+}
+
+func (p *parser) takeOperator(pipe, keyword Token) (*TakeOperator, error) {
+	op := &TakeOperator{
+		Pipe:    pipe.Span,
+		Keyword: keyword.Span,
+	}
+
+	tok, _ := p.next()
+	if tok.Kind != TokenNumber {
+		return op, &parseError{
+			source: p.source,
+			span:   tok.Span,
+			err:    fmt.Errorf("expected integer, got %s", formatToken(p.source, tok)),
+		}
+	}
+	rowCount := &BasicLit{
+		Kind:      tok.Kind,
+		Value:     tok.Value,
+		ValueSpan: tok.Span,
+	}
+	op.RowCount = rowCount
+	if !rowCount.IsInteger() {
+		return op, &parseError{
+			source: p.source,
+			span:   tok.Span,
+			err:    fmt.Errorf("expected integer, got %s", formatToken(p.source, tok)),
+		}
+	}
+	return op, nil
 }
 
 // exprList parses one or more comma-separated expressions.

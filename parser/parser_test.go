@@ -700,6 +700,52 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "Take",
+			query: "StormEvents | take 5",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&TakeOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 18),
+						RowCount: &BasicLit{
+							Kind:      TokenNumber,
+							Value:     "5",
+							ValueSpan: newSpan(19, 20),
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "Limit",
+			query: "StormEvents | limit 5",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&TakeOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
+						RowCount: &BasicLit{
+							Kind:      TokenNumber,
+							Value:     "5",
+							ValueSpan: newSpan(20, 21),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	equateInvalidSpans := cmp.FilterValues(func(span1, span2 Span) bool {

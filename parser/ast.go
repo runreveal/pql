@@ -119,6 +119,20 @@ func (term *SortTerm) Span() Span {
 	return span
 }
 
+// TakeOperator represents a `| take` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type TakeOperator struct {
+	Pipe     Span
+	Keyword  Span
+	RowCount Expr
+}
+
+func (op *TakeOperator) tabularOperator() {}
+
+func (op *TakeOperator) Span() Span {
+	return newSpan(op.Pipe.Start, op.RowCount.Span().End)
+}
+
 // Expr is the interface implemented by all expression AST node types.
 type Expr interface {
 	Node
