@@ -575,6 +575,131 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "SortBy",
+			query: "foo | sort by bar",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "foo",
+						NameSpan: newSpan(0, 3),
+					},
+				},
+				Operators: []TabularOperator{
+					&SortOperator{
+						Pipe:    newSpan(4, 5),
+						Keyword: newSpan(6, 13),
+						Terms: []*SortTerm{
+							{
+								X: &Ident{
+									Name:     "bar",
+									NameSpan: newSpan(14, 17),
+								},
+								AscDescSpan: nullSpan(),
+								NullsSpan:   nullSpan(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "OrderBy",
+			query: "foo | order by bar",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "foo",
+						NameSpan: newSpan(0, 3),
+					},
+				},
+				Operators: []TabularOperator{
+					&SortOperator{
+						Pipe:    newSpan(4, 5),
+						Keyword: newSpan(6, 14),
+						Terms: []*SortTerm{
+							{
+								X: &Ident{
+									Name:     "bar",
+									NameSpan: newSpan(15, 18),
+								},
+								AscDescSpan: nullSpan(),
+								NullsSpan:   nullSpan(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "SortByMultiple",
+			query: "StormEvents | sort by State asc, StartTime desc",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&SortOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 21),
+						Terms: []*SortTerm{
+							{
+								X: &Ident{
+									Name:     "State",
+									NameSpan: newSpan(22, 27),
+								},
+								Asc:         true,
+								AscDescSpan: newSpan(28, 31),
+								NullsFirst:  true,
+								NullsSpan:   nullSpan(),
+							},
+							{
+								X: &Ident{
+									Name:     "StartTime",
+									NameSpan: newSpan(33, 42),
+								},
+								Asc:         false,
+								AscDescSpan: newSpan(43, 47),
+								NullsFirst:  false,
+								NullsSpan:   nullSpan(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "SortByNullsFirst",
+			query: "foo | sort by bar nulls first",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "foo",
+						NameSpan: newSpan(0, 3),
+					},
+				},
+				Operators: []TabularOperator{
+					&SortOperator{
+						Pipe:    newSpan(4, 5),
+						Keyword: newSpan(6, 13),
+						Terms: []*SortTerm{
+							{
+								X: &Ident{
+									Name:     "bar",
+									NameSpan: newSpan(14, 17),
+								},
+								AscDescSpan: nullSpan(),
+								NullsFirst:  true,
+								NullsSpan:   newSpan(18, 29),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	equateInvalidSpans := cmp.FilterValues(func(span1, span2 Span) bool {

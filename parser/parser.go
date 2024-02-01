@@ -115,6 +115,12 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 				expr.Operators = append(expr.Operators, op)
 			}
 			returnedError = joinErrors(returnedError, err)
+		case "sort", "order":
+			op, err := p.sortOperator(pipeToken, operatorName)
+			if op != nil {
+				expr.Operators = append(expr.Operators, op)
+			}
+			returnedError = joinErrors(returnedError, err)
 		default:
 			returnedError = joinErrors(returnedError, &parseError{
 				source: p.source,
@@ -142,6 +148,116 @@ func (p *parser) whereOperator(pipe, keyword Token) (*WhereOperator, error) {
 		Keyword:   keyword.Span,
 		Predicate: x,
 	}, err
+}
+
+func (p *parser) sortOperator(pipe, keyword Token) (*SortOperator, error) {
+	by, _ := p.next()
+	if by.Kind != TokenIdentifier || by.Value != "by" {
+		op := &SortOperator{
+			Pipe:    pipe.Span,
+			Keyword: keyword.Span,
+		}
+		err := &parseError{
+			source: p.source,
+			span:   by.Span,
+			err:    fmt.Errorf("expected 'by', got %s", formatToken(p.source, by)),
+		}
+		return op, err
+	}
+
+	op := &SortOperator{
+		Pipe:    pipe.Span,
+		Keyword: newSpan(keyword.Span.Start, by.Span.End),
+	}
+	for {
+		x, err := p.expr()
+		if err != nil {
+			return op, makeErrorOpaque(err)
+		}
+		term := &SortTerm{
+			X:           x,
+			AscDescSpan: nullSpan(),
+			NullsSpan:   nullSpan(),
+		}
+		op.Terms = append(op.Terms, term)
+
+		// asc/desc
+		tok, ok := p.next()
+		if !ok {
+			return op, nil
+		}
+		switch tok.Kind {
+		case TokenComma:
+			continue
+		case TokenIdentifier:
+			switch tok.Value {
+			case "asc":
+				term.Asc = true
+				term.AscDescSpan = tok.Span
+				term.NullsFirst = true
+			case "desc":
+				term.Asc = false
+				term.AscDescSpan = tok.Span
+				term.NullsFirst = false
+			case "nulls":
+				// Good, but wait until next switch statement.
+				p.prev()
+			default:
+				return op, &parseError{
+					source: p.source,
+					span:   tok.Span,
+					err:    fmt.Errorf("expected 'asc', 'desc', 'nulls', or a comma, got %s", formatToken(p.source, tok)),
+				}
+			}
+		default:
+			return op, &parseError{
+				source: p.source,
+				span:   tok.Span,
+				err:    fmt.Errorf("expected 'asc', 'desc', 'nulls', or a comma, got %s", formatToken(p.source, tok)),
+			}
+		}
+
+		// nulls first/last
+		tok, ok = p.next()
+		if !ok {
+			return op, nil
+		}
+		switch {
+		case tok.Kind == TokenComma:
+			continue
+		case tok.Kind == TokenIdentifier && tok.Value == "nulls":
+			switch tok2, _ := p.next(); {
+			case tok2.Kind == TokenIdentifier && tok2.Value == "first":
+				term.NullsFirst = true
+				term.NullsSpan = newSpan(tok.Span.Start, tok2.Span.End)
+			case tok2.Kind == TokenIdentifier && tok2.Value == "last":
+				term.NullsFirst = false
+				term.NullsSpan = newSpan(tok.Span.Start, tok2.Span.End)
+			default:
+				return op, &parseError{
+					source: p.source,
+					span:   tok2.Span,
+					err:    fmt.Errorf("expected 'first' or 'last', got %s", formatToken(p.source, tok2)),
+				}
+			}
+		default:
+			return op, &parseError{
+				source: p.source,
+				span:   tok.Span,
+				err:    fmt.Errorf("expected 'nulls' or a comma, got %s", formatToken(p.source, tok)),
+			}
+		}
+
+		// Check for a comma to see if we should proceed.
+		tok, ok = p.next()
+		if !ok {
+			return op, nil
+		}
+		if tok.Kind != TokenComma {
+			p.prev()
+			return op, nil
+		}
+	}
 }
 
 // exprList parses one or more comma-separated expressions.

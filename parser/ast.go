@@ -82,6 +82,43 @@ func (op *WhereOperator) Span() Span {
 	return newSpan(op.Pipe.Start, op.Predicate.Span().End)
 }
 
+// SortOperator represents a `| sort by` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type SortOperator struct {
+	Pipe    Span
+	Keyword Span
+	Terms   []*SortTerm
+}
+
+func (op *SortOperator) tabularOperator() {}
+
+func (op *SortOperator) Span() Span {
+	if len(op.Terms) == 0 {
+		// Not technically valid, but want to avoid a panic.
+		return newSpan(op.Pipe.Start, op.Keyword.End)
+	}
+	return newSpan(op.Pipe.Start, op.Terms[len(op.Terms)-1].Span().End)
+}
+
+// SortTerm is a single sort constraint in the [SortOperator].
+type SortTerm struct {
+	X           Expr
+	Asc         bool
+	AscDescSpan Span
+	NullsFirst  bool
+	NullsSpan   Span
+}
+
+func (term *SortTerm) Span() Span {
+	span := term.X.Span()
+	if term.NullsSpan.IsValid() {
+		span.End = term.NullsSpan.End
+	} else if term.AscDescSpan.IsValid() {
+		span.End = term.AscDescSpan.End
+	}
+	return span
+}
+
 // Expr is the interface implemented by all expression AST node types.
 type Expr interface {
 	Node
