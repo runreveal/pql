@@ -133,6 +133,12 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 				expr.Operators = append(expr.Operators, op)
 			}
 			returnedError = joinErrors(returnedError, err)
+		case "summarize":
+			op, err := p.summarizeOperator(pipeToken, operatorName)
+			if op != nil {
+				expr.Operators = append(expr.Operators, op)
+			}
+			returnedError = joinErrors(returnedError, err)
 		default:
 			returnedError = joinErrors(returnedError, &parseError{
 				source: p.source,
@@ -341,6 +347,110 @@ func (p *parser) projectOperator(pipe, keyword Token) (*ProjectOperator, error) 
 			return op, nil
 		}
 	}
+}
+
+func (p *parser) summarizeOperator(pipe, keyword Token) (*SummarizeOperator, error) {
+	op := &SummarizeOperator{
+		Pipe:    pipe.Span,
+		Keyword: keyword.Span,
+		By:      nullSpan(),
+	}
+
+	for {
+		col, err := p.summarizeColumn()
+		if isNotFound(err) {
+			break
+		}
+		if col != nil {
+			op.Cols = append(op.Cols, col)
+		}
+		if err != nil {
+			return op, makeErrorOpaque(err)
+		}
+
+		sep, ok := p.next()
+		if !ok {
+			return op, nil
+		}
+		if sep.Kind != TokenComma {
+			p.prev()
+			break
+		}
+	}
+
+	sep, ok := p.next()
+	if !ok {
+		if len(op.Cols) == 0 {
+			return op, &parseError{
+				source: p.source,
+				span:   sep.Span,
+				err:    fmt.Errorf("expected expression or 'by', got EOF"),
+			}
+		}
+		return op, nil
+	}
+	if sep.Kind != TokenBy {
+		p.prev()
+		if len(op.Cols) == 0 {
+			return op, &parseError{
+				source: p.source,
+				span:   sep.Span,
+				err:    fmt.Errorf("expected expression or 'by', got %s", formatToken(p.source, sep)),
+			}
+		}
+		return op, nil
+	}
+	op.By = sep.Span
+	for {
+		col, err := p.summarizeColumn()
+		if isNotFound(err) {
+			return op, makeErrorOpaque(err)
+		}
+		if col != nil {
+			op.GroupBy = append(op.GroupBy, col)
+		}
+		if err != nil {
+			return op, makeErrorOpaque(err)
+		}
+
+		sep, ok := p.next()
+		if !ok {
+			return op, nil
+		}
+		if sep.Kind != TokenComma {
+			p.prev()
+			return op, nil
+		}
+	}
+}
+
+func (p *parser) summarizeColumn() (*SummarizeColumn, error) {
+	restorePos := p.pos
+
+	col := &SummarizeColumn{
+		Assign: nullSpan(),
+	}
+
+	var err error
+	col.Name, err = p.ident()
+	if err == nil {
+		if assign, _ := p.next(); assign.Kind == TokenAssign {
+			col.Assign = assign.Span
+		} else {
+			col.Name = nil
+			p.pos = restorePos
+		}
+	} else if !isNotFound(err) {
+		col.X = col.Name
+		col.Name = nil
+		return col, makeErrorOpaque(err)
+	}
+
+	col.X, err = p.expr()
+	if col.Name != nil {
+		err = makeErrorOpaque(err)
+	}
+	return col, err
 }
 
 // exprList parses one or more comma-separated expressions.

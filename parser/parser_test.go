@@ -826,6 +826,209 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "UniqueCombination",
+			query: "StormEvents | summarize by State, EventType",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&SummarizeOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 23),
+						By:      newSpan(24, 26),
+						GroupBy: []*SummarizeColumn{
+							{
+								Assign: nullSpan(),
+								X: &Ident{
+									Name:     "State",
+									NameSpan: newSpan(27, 32),
+								},
+							},
+							{
+								Assign: nullSpan(),
+								X: &Ident{
+									Name:     "EventType",
+									NameSpan: newSpan(34, 43),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "MinAndMax",
+			query: "StormEvents | summarize Min = min(Duration), Max = max(Duration)",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&SummarizeOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 23),
+						Cols: []*SummarizeColumn{
+							{
+								Name: &Ident{
+									Name:     "Min",
+									NameSpan: newSpan(24, 27),
+								},
+								Assign: newSpan(28, 29),
+								X: &CallExpr{
+									Func: &Ident{
+										Name:     "min",
+										NameSpan: newSpan(30, 33),
+									},
+									Lparen: newSpan(33, 34),
+									Args: []Expr{&Ident{
+										Name:     "Duration",
+										NameSpan: newSpan(34, 42),
+									}},
+									Rparen: newSpan(42, 43),
+								},
+							},
+							{
+								Name: &Ident{
+									Name:     "Max",
+									NameSpan: newSpan(45, 48),
+								},
+								Assign: newSpan(49, 50),
+								X: &CallExpr{
+									Func: &Ident{
+										Name:     "max",
+										NameSpan: newSpan(51, 54),
+									},
+									Lparen: newSpan(54, 55),
+									Args: []Expr{&Ident{
+										Name:     "Duration",
+										NameSpan: newSpan(55, 63),
+									}},
+									Rparen: newSpan(63, 64),
+								},
+							},
+						},
+						By: nullSpan(),
+					},
+				},
+			},
+		},
+		{
+			name:  "DistinctCount",
+			query: "StormEvents | summarize TypesOfStorms=dcount(EventType) by State",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&SummarizeOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 23),
+						Cols: []*SummarizeColumn{
+							{
+								Name: &Ident{
+									Name:     "TypesOfStorms",
+									NameSpan: newSpan(24, 37),
+								},
+								Assign: newSpan(37, 38),
+								X: &CallExpr{
+									Func: &Ident{
+										Name:     "dcount",
+										NameSpan: newSpan(38, 44),
+									},
+									Lparen: newSpan(44, 45),
+									Args: []Expr{&Ident{
+										Name:     "EventType",
+										NameSpan: newSpan(45, 54),
+									}},
+									Rparen: newSpan(54, 55),
+								},
+							},
+						},
+						By: newSpan(56, 58),
+						GroupBy: []*SummarizeColumn{
+							{
+								Assign: nullSpan(),
+								X: &Ident{
+									Name:     "State",
+									NameSpan: newSpan(59, 64),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "ShortSummarize",
+			query: "StormEvents | summarize",
+			err:   true,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&SummarizeOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 23),
+						By:      nullSpan(),
+					},
+				},
+			},
+		},
+		{
+			name:  "SummarizeByTerminated",
+			query: "StormEvents | summarize by",
+			err:   true,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&SummarizeOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 23),
+						By:      newSpan(24, 26),
+					},
+				},
+			},
+		},
+		{
+			name:  "SummarizeRandomToken",
+			query: "StormEvents | summarize and",
+			err:   true,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&SummarizeOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 23),
+						By:      nullSpan(),
+					},
+				},
+			},
+		},
 	}
 
 	equateInvalidSpans := cmp.FilterValues(func(span1, span2 Span) bool {

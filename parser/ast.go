@@ -168,6 +168,46 @@ func (op *ProjectColumn) Span() Span {
 	return newSpan(op.Name.NameSpan.Start, op.X.Span().End)
 }
 
+// SummarizeOperator represents a `| summarize` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type SummarizeOperator struct {
+	Pipe    Span
+	Keyword Span
+	Cols    []*SummarizeColumn
+	By      Span
+	GroupBy []*SummarizeColumn
+}
+
+func (op *SummarizeOperator) tabularOperator() {}
+
+func (op *SummarizeOperator) Span() Span {
+	switch {
+	case len(op.GroupBy) > 0:
+		return newSpan(op.Pipe.Start, op.GroupBy[len(op.GroupBy)-1].Span().End)
+	case len(op.Cols) > 0:
+		return newSpan(op.Pipe.Start, op.Cols[len(op.Cols)-1].Span().End)
+	default:
+		// Not technically valid, but want to avoid a panic.
+		return newSpan(op.Pipe.Start, op.Keyword.End)
+	}
+}
+
+// A SummarizeColumn is a single column term in a [SummarizeOperator].
+// It consists of an expression, optionally preceded by a column name.
+// If the column name is omitted, one is derived from the expression.
+type SummarizeColumn struct {
+	Name   *Ident
+	Assign Span
+	X      Expr
+}
+
+func (op *SummarizeColumn) Span() Span {
+	if op.Name == nil {
+		return op.X.Span()
+	}
+	return newSpan(op.Name.NameSpan.Start, op.X.Span().End)
+}
+
 // Expr is the interface implemented by all expression AST node types.
 type Expr interface {
 	Node
