@@ -133,6 +133,41 @@ func (op *TakeOperator) Span() Span {
 	return newSpan(op.Pipe.Start, op.RowCount.Span().End)
 }
 
+// ProjectOperator represents a `| project` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type ProjectOperator struct {
+	Pipe    Span
+	Keyword Span
+	Cols    []*ProjectColumn
+}
+
+func (op *ProjectOperator) tabularOperator() {}
+
+func (op *ProjectOperator) Span() Span {
+	if len(op.Cols) == 0 {
+		// Not technically valid, but want to avoid a panic.
+		return newSpan(op.Pipe.Start, op.Keyword.End)
+	}
+	return newSpan(op.Pipe.Start, op.Cols[len(op.Cols)-1].Span().End)
+}
+
+// A ProjectColumn is a single column term in a [ProjectOperator].
+// It consists of a column name,
+// optionally followed by an expression specifying how to compute the column.
+// If the expression is omitted, it is equivalent to using the Name as the expression.
+type ProjectColumn struct {
+	Name   *Ident
+	Assign Span
+	X      Expr
+}
+
+func (op *ProjectColumn) Span() Span {
+	if op.X == nil {
+		return op.Name.NameSpan
+	}
+	return newSpan(op.Name.NameSpan.Start, op.X.Span().End)
+}
+
 // Expr is the interface implemented by all expression AST node types.
 type Expr interface {
 	Node

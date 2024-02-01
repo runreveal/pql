@@ -746,6 +746,86 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "Project",
+			query: "StormEvents | project EventId, State, EventType",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&ProjectOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 21),
+						Cols: []*ProjectColumn{
+							{
+								Name: &Ident{
+									Name:     "EventId",
+									NameSpan: newSpan(22, 29),
+								},
+								Assign: nullSpan(),
+							},
+							{
+								Name: &Ident{
+									Name:     "State",
+									NameSpan: newSpan(31, 36),
+								},
+								Assign: nullSpan(),
+							},
+							{
+								Name: &Ident{
+									Name:     "EventType",
+									NameSpan: newSpan(38, 47),
+								},
+								Assign: nullSpan(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "ProjectExpr",
+			query: "StormEvents | project TotalInjuries = InjuriesDirect + InjuriesIndirect",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&ProjectOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 21),
+						Cols: []*ProjectColumn{
+							{
+								Name: &Ident{
+									Name:     "TotalInjuries",
+									NameSpan: newSpan(22, 35),
+								},
+								Assign: newSpan(36, 37),
+								X: &BinaryExpr{
+									X: &Ident{
+										Name:     "InjuriesDirect",
+										NameSpan: newSpan(38, 52),
+									},
+									OpSpan: newSpan(53, 54),
+									Op:     TokenPlus,
+									Y: &Ident{
+										Name:     "InjuriesIndirect",
+										NameSpan: newSpan(55, 71),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	equateInvalidSpans := cmp.FilterValues(func(span1, span2 Span) bool {

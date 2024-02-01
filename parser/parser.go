@@ -127,6 +127,12 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 				expr.Operators = append(expr.Operators, op)
 			}
 			returnedError = joinErrors(returnedError, err)
+		case "project":
+			op, err := p.projectOperator(pipeToken, operatorName)
+			if op != nil {
+				expr.Operators = append(expr.Operators, op)
+			}
+			returnedError = joinErrors(returnedError, err)
 		default:
 			returnedError = joinErrors(returnedError, &parseError{
 				source: p.source,
@@ -294,6 +300,47 @@ func (p *parser) takeOperator(pipe, keyword Token) (*TakeOperator, error) {
 		}
 	}
 	return op, nil
+}
+
+func (p *parser) projectOperator(pipe, keyword Token) (*ProjectOperator, error) {
+	op := &ProjectOperator{
+		Pipe:    pipe.Span,
+		Keyword: keyword.Span,
+	}
+
+	for {
+		colName, err := p.ident()
+		if err != nil {
+			return op, makeErrorOpaque(err)
+		}
+		col := &ProjectColumn{
+			Name:   colName,
+			Assign: nullSpan(),
+		}
+		op.Cols = append(op.Cols, col)
+
+		sep, ok := p.next()
+		if !ok {
+			return op, nil
+		}
+		switch sep.Kind {
+		case TokenComma:
+			continue
+		case TokenAssign:
+			col.Assign = sep.Span
+			col.X, err = p.expr()
+			if err != nil {
+				return op, makeErrorOpaque(err)
+			}
+			sep, ok = p.next()
+			if !ok || sep.Kind != TokenComma {
+				return op, nil
+			}
+		default:
+			p.prev()
+			return op, nil
+		}
+	}
 }
 
 // exprList parses one or more comma-separated expressions.
