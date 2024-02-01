@@ -9,16 +9,19 @@ import (
 
 func TestParse(t *testing.T) {
 	tests := []struct {
+		name  string
 		query string
 		want  *TabularExpr
 		err   bool
 	}{
 		{
+			name:  "Empty",
 			query: "",
 			want:  nil,
 			err:   true,
 		},
 		{
+			name:  "OnlyTableName",
 			query: "StormEvents",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -30,6 +33,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "PipeCount",
 			query: "StormEvents | count",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -47,6 +51,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "DoublePipeCount",
 			query: "StormEvents | count | count",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -68,6 +73,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "WhereTrue",
 			query: "StormEvents | where true",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -89,6 +95,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "NegativeNumber",
 			query: "StormEvents | where -42",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -115,6 +122,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "ZeroArgFunction",
 			query: `StormEvents | where rand()`,
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -140,6 +148,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "OneArgFunction",
 			query: "StormEvents | where not(false)",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -171,6 +180,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "TwoArgFunction",
 			query: `StormEvents | where strcat("abc", "def")`,
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -208,6 +218,84 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "TwoArgFunctionWithTrailingComma",
+			query: `StormEvents | where strcat("abc", "def",)`,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
+						Predicate: &CallExpr{
+							Func: &Ident{
+								Name:     "strcat",
+								NameSpan: newSpan(20, 26),
+							},
+							Lparen: newSpan(26, 27),
+							Args: []Expr{
+								&BasicLit{
+									Kind:      TokenString,
+									Value:     "abc",
+									ValueSpan: newSpan(27, 32),
+								},
+								&BasicLit{
+									Kind:      TokenString,
+									Value:     "def",
+									ValueSpan: newSpan(34, 39),
+								},
+							},
+							Rparen: newSpan(40, 41),
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "TwoArgFunctionWithTwoTrailingCommas",
+			query: `StormEvents | where strcat("abc", "def",,)`,
+			err:   true,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
+						Predicate: &CallExpr{
+							Func: &Ident{
+								Name:     "strcat",
+								NameSpan: newSpan(20, 26),
+							},
+							Lparen: newSpan(26, 27),
+							Args: []Expr{
+								&BasicLit{
+									Kind:      TokenString,
+									Value:     "abc",
+									ValueSpan: newSpan(27, 32),
+								},
+								&BasicLit{
+									Kind:      TokenString,
+									Value:     "def",
+									ValueSpan: newSpan(34, 39),
+								},
+							},
+							Rparen: newSpan(41, 42),
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "ExtraContentInCount",
 			query: `StormEvents | count x | where true`,
 			err:   true,
 			want: &TabularExpr{
@@ -234,6 +322,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "BinaryOp",
 			query: "StormEvents | where DamageProperty > 0",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -264,6 +353,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "ComparisonWithSamePrecedenceLHS",
 			query: "foo | where x / y * z == 1",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -310,6 +400,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "ParenthesizedExpr",
 			query: "foo | where x / (y * z) == 1",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -360,6 +451,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "OperatorPrecedence",
 			query: "foo | where 2 + 3 * 4 + 5 == 19",
 			want: &TabularExpr{
 				Source: &TableRef{
@@ -417,21 +509,89 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "BadArgument",
+			query: "foo | where strcat('a', .bork, 'x', 'y')",
+			err:   true,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "foo",
+						NameSpan: newSpan(0, 3),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(4, 5),
+						Keyword: newSpan(6, 11),
+						Predicate: &CallExpr{
+							Func: &Ident{
+								Name:     "strcat",
+								NameSpan: newSpan(12, 18),
+							},
+							Lparen: newSpan(18, 19),
+							Args: []Expr{
+								&BasicLit{
+									Kind:      TokenString,
+									Value:     "a",
+									ValueSpan: newSpan(19, 22),
+								},
+							},
+							Rparen: newSpan(39, 40),
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "BadParentheticalExpr",
+			query: "foo | where (.bork) + 2",
+			err:   true,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "foo",
+						NameSpan: newSpan(0, 3),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(4, 5),
+						Keyword: newSpan(6, 11),
+						Predicate: &BinaryExpr{
+							X: &ParenExpr{
+								Lparen: newSpan(12, 13),
+								Rparen: newSpan(18, 19),
+							},
+							OpSpan: newSpan(20, 21),
+							Op:     TokenPlus,
+							Y: &BasicLit{
+								Kind:      TokenNumber,
+								Value:     "2",
+								ValueSpan: newSpan(22, 23),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, test := range tests {
-		got, err := Parse(test.query)
-		if err != nil {
-			if test.err {
-				t.Logf("Parse(%q) error (as expected): %v", test.query, err)
-			} else {
-				t.Errorf("Parse(%q) returned unexpected error: %v", test.query, err)
+		t.Run(test.name, func(t *testing.T) {
+			got, err := Parse(test.query)
+			if err != nil {
+				if test.err {
+					t.Logf("Parse(%q) error (as expected): %v", test.query, err)
+				} else {
+					t.Errorf("Parse(%q) returned unexpected error: %v", test.query, err)
+				}
 			}
-		}
-		if err == nil && test.err {
-			t.Errorf("Parse(%q) did not return an error", test.query)
-		}
-		if diff := cmp.Diff(test.want, got, cmpopts.EquateEmpty()); diff != "" {
-			t.Errorf("Parse(%q) (-want +got):\n%s", test.query, diff)
-		}
+			if err == nil && test.err {
+				t.Errorf("Parse(%q) did not return an error", test.query)
+			}
+			if diff := cmp.Diff(test.want, got, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("Parse(%q) (-want +got):\n%s", test.query, diff)
+			}
+		})
 	}
 }

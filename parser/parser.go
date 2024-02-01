@@ -152,6 +152,7 @@ func (p *parser) exprList() ([]Expr, error) {
 	}
 	result := []Expr{first}
 	for {
+		restorePos := p.pos
 		tok, ok := p.next()
 		if !ok {
 			return result, nil
@@ -161,6 +162,10 @@ func (p *parser) exprList() ([]Expr, error) {
 			return result, nil
 		}
 		x, err := p.expr()
+		if isNotFound(err) {
+			p.pos = restorePos
+			return result, nil
+		}
 		if x != nil {
 			result = append(result, x)
 		}
@@ -172,34 +177,31 @@ func (p *parser) exprList() ([]Expr, error) {
 }
 
 func (p *parser) expr() (Expr, error) {
-	x, err := p.unaryExpr()
-	if err != nil {
-		return x, err
+	x, err1 := p.unaryExpr()
+	if isNotFound(err1) {
+		return x, err1
 	}
-	return p.exprBinaryTrail(x, 0)
+	x, err2 := p.exprBinaryTrail(x, 0)
+	return x, joinErrors(err1, err2)
 }
 
 // exprBinaryTrail parses zero or more (binaryOp, unaryExpr) sequences.
 func (p *parser) exprBinaryTrail(x Expr, minPrecedence int) (Expr, error) {
+	var finalError error
 	for {
 		op1, ok := p.next()
 		if !ok {
-			return x, nil
+			return x, finalError
 		}
 		precedence1 := operatorPrecedence(op1.Kind)
 		if precedence1 < 0 || precedence1 < minPrecedence {
 			// Not a binary operator or below precedence threshold.
 			p.prev()
-			return x, nil
+			return x, finalError
 		}
 		y, err := p.unaryExpr()
 		if err != nil {
-			return &BinaryExpr{
-				X:      x,
-				OpSpan: op1.Span,
-				Op:     op1.Kind,
-				Y:      y,
-			}, makeErrorOpaque(err)
+			finalError = joinErrors(finalError, makeErrorOpaque(err))
 		}
 
 		// Resolve any higher precedence operators first.
@@ -217,12 +219,7 @@ func (p *parser) exprBinaryTrail(x Expr, minPrecedence int) (Expr, error) {
 			}
 			y, err = p.exprBinaryTrail(y, precedence1+1)
 			if err != nil {
-				return &BinaryExpr{
-					X:      x,
-					OpSpan: op1.Span,
-					Op:     op1.Kind,
-					Y:      y,
-				}, makeErrorOpaque(err)
+				finalError = joinErrors(finalError, makeErrorOpaque(err))
 			}
 		}
 
@@ -321,6 +318,13 @@ func (p *parser) primaryExpr() (Expr, error) {
 					span:   finalTok.Span,
 					err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, finalTok)),
 				})
+				p.skipTo(TokenRParen)
+				finalTok, _ = p.next()
+				if finalTok.Kind == TokenRParen {
+					rparen = finalTok.Span
+				} else {
+					p.prev()
+				}
 			}
 			return &CallExpr{
 				Func: &Ident{
@@ -343,6 +347,7 @@ func (p *parser) primaryExpr() (Expr, error) {
 		return p.ident()
 	case TokenLParen:
 		x, err := p.expr()
+		err = makeErrorOpaque(err) // already consumed a parenthesis
 		endTok, ok := p.next()
 		if !ok {
 			err2 := &parseError{
@@ -357,16 +362,20 @@ func (p *parser) primaryExpr() (Expr, error) {
 			}, joinErrors(err, err2)
 		}
 		if endTok.Kind != TokenRParen {
-			err2 := &parseError{
+			err = joinErrors(err, &parseError{
 				source: p.source,
 				span:   endTok.Span,
 				err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, endTok)),
+			})
+			p.skipTo(TokenRParen)
+			endTok, _ = p.next()
+			if endTok.Kind != TokenRParen {
+				return &ParenExpr{
+					Lparen: tok.Span,
+					X:      x,
+					Rparen: nullSpan(),
+				}, err
 			}
-			return &ParenExpr{
-				Lparen: tok.Span,
-				X:      x,
-				Rparen: nullSpan(),
-			}, joinErrors(err, err2)
 		}
 		return &ParenExpr{
 			Lparen: tok.Span,
