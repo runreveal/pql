@@ -33,23 +33,24 @@ func _() {
 	_ = x[TokenCaseInsensitiveNE-23]
 	_ = x[TokenLParen-24]
 	_ = x[TokenRParen-25]
+	_ = x[TokenBy-26]
 	_ = x[TokenError - -1]
 }
 
 const (
 	_TokenKind_name_0 = "TokenError"
-	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenNumberTokenStringTokenAndTokenOrTokenPipeTokenDotTokenCommaTokenPlusTokenMinusTokenStarTokenSlashTokenModTokenAssignTokenEqTokenNETokenLTTokenLETokenGTTokenGETokenCaseInsensitiveEqTokenCaseInsensitiveNETokenLParenTokenRParen"
+	_TokenKind_name_1 = "TokenIdentifierTokenQuotedIdentifierTokenNumberTokenStringTokenAndTokenOrTokenPipeTokenDotTokenCommaTokenPlusTokenMinusTokenStarTokenSlashTokenModTokenAssignTokenEqTokenNETokenLTTokenLETokenGTTokenGETokenCaseInsensitiveEqTokenCaseInsensitiveNETokenLParenTokenRParenTokenBy"
 )
 
 var (
-	_TokenKind_index_1 = [...]uint16{0, 15, 36, 47, 58, 66, 73, 82, 90, 100, 109, 119, 128, 138, 146, 157, 164, 171, 178, 185, 192, 199, 221, 243, 254, 265}
+	_TokenKind_index_1 = [...]uint16{0, 15, 36, 47, 58, 66, 73, 82, 90, 100, 109, 119, 128, 138, 146, 157, 164, 171, 178, 185, 192, 199, 221, 243, 254, 265, 272}
 )
 
 func (i TokenKind) String() string {
 	switch {
 	case i == -1:
 		return _TokenKind_name_0
-	case 1 <= i && i <= 25:
+	case 1 <= i && i <= 26:
 		i -= 1
 		return _TokenKind_name_1[_TokenKind_index_1[i]:_TokenKind_index_1[i+1]]
 	default:

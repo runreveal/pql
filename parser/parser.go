@@ -164,7 +164,7 @@ func (p *parser) whereOperator(pipe, keyword Token) (*WhereOperator, error) {
 
 func (p *parser) sortOperator(pipe, keyword Token) (*SortOperator, error) {
 	by, _ := p.next()
-	if by.Kind != TokenIdentifier || by.Value != "by" {
+	if by.Kind != TokenBy {
 		op := &SortOperator{
 			Pipe:    pipe.Span,
 			Keyword: keyword.Span,

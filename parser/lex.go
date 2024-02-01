@@ -97,6 +97,10 @@ const (
 	// The Value will be the empty string.
 	TokenRParen
 
+	// TokenBy is the keyword "or".
+	// The Value will be the empty string.
+	TokenBy
+
 	// TokenError is a marker for a scan error.
 	// The Value will contain the error message.
 	TokenError TokenKind = -1
@@ -296,6 +300,7 @@ func Scan(query string) []Token {
 var keywords = map[string]TokenKind{
 	"and": TokenAnd,
 	"or":  TokenOr,
+	"by":  TokenBy,
 }
 
 func (s *scanner) ident() Token {
