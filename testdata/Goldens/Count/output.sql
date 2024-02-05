@@ -1,1 +1,1 @@
-SELECT COUNT(*) FROM StormEvents;
+SELECT COUNT(*) FROM "StormEvents";

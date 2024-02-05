@@ -1,1 +1,1 @@
-SELECT * FROM StormEvents;
+SELECT * FROM "StormEvents";
