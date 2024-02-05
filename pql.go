@@ -29,7 +29,9 @@ func Compile(source string) (string, error) {
 		for i, sub := range ctes {
 			quoteIdentifier(sb, sub.name)
 			sb.WriteString(" AS (")
-			sub.write(sb)
+			if err := sub.write(sb, source); err != nil {
+				return "", err
+			}
 			sb.WriteString(")")
 			if i < len(ctes)-1 {
 				sb.WriteString(",")
@@ -37,7 +39,9 @@ func Compile(source string) (string, error) {
 			sb.WriteString("\n")
 		}
 	}
-	query.write(sb)
+	if err := query.write(sb, source); err != nil {
+		return "", err
+	}
 	sb.WriteString(";")
 	return sb.String(), nil
 }
@@ -119,7 +123,7 @@ func canAttachSort(op parser.TabularOperator) bool {
 	}
 }
 
-func (sub *subquery) write(sb *strings.Builder) {
+func (sub *subquery) write(sb *strings.Builder, source string) error {
 	switch op := sub.op.(type) {
 	case nil:
 		sb.WriteString("SELECT * FROM ")
@@ -131,9 +135,13 @@ func (sub *subquery) write(sb *strings.Builder) {
 				sb.WriteString(", ")
 			}
 			if col.X == nil {
-				writeExpression(sb, col.Name)
+				if err := writeExpression(sb, source, col.Name); err != nil {
+					return err
+				}
 			} else {
-				writeExpression(sb, col.X)
+				if err := writeExpression(sb, source, col.X); err != nil {
+					return err
+				}
 			}
 			sb.WriteString(" AS ")
 			quoteIdentifier(sb, col.Name.Name)
@@ -144,19 +152,23 @@ func (sub *subquery) write(sb *strings.Builder) {
 		sb.WriteString("SELECT * FROM ")
 		sb.WriteString(sub.sourceSQL)
 		sb.WriteString(" WHERE ")
-		writeExpression(sb, op.Predicate)
+		if err := writeExpression(sb, source, op.Predicate); err != nil {
+			return err
+		}
 	case *parser.CountOperator:
 		sb.WriteString("SELECT COUNT(*) FROM ")
 		sb.WriteString(sub.sourceSQL)
 	default:
 		fmt.Fprintf(sb, "SELECT NULL /* unsupported operator %T */", op)
-		return
+		return nil
 	}
 
 	if sub.sort != nil {
 		sb.WriteString(" ORDER BY ")
 		for i, term := range sub.sort.Terms {
-			writeExpression(sb, term.X)
+			if err := writeExpression(sb, source, term.X); err != nil {
+				return err
+			}
 			if term.Asc {
 				sb.WriteString(" ASC")
 			} else {
@@ -175,8 +187,12 @@ func (sub *subquery) write(sb *strings.Builder) {
 
 	if sub.take != nil {
 		sb.WriteString(" LIMIT ")
-		writeExpression(sb, sub.take.RowCount)
+		if err := writeExpression(sb, source, sub.take.RowCount); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func dataSourceSQL(src parser.TabularDataSource) (string, error) {
@@ -219,7 +235,7 @@ var binaryOps = map[parser.TokenKind]string{
 	parser.TokenGE:    ">=",
 }
 
-func writeExpression(sb *strings.Builder, x parser.Expr) {
+func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 	// Unwrap any parentheses.
 	// We manually insert parentheses as needed.
 	for {
@@ -251,59 +267,103 @@ func writeExpression(sb *strings.Builder, x parser.Expr) {
 		default:
 			fmt.Fprintf(sb, "/* unhandled %s unary op */ ", x.Op)
 		}
-		writeExpression(sb, x.X)
+		if err := writeExpression(sb, source, x.X); err != nil {
+			return err
+		}
 	case *parser.BinaryExpr:
 		switch x.Op {
 		case parser.TokenEq:
 			sb.WriteString("coalesce((")
-			writeExpression(sb, x.X)
+			if err := writeExpression(sb, source, x.X); err != nil {
+				return err
+			}
 			sb.WriteString(") = (")
-			writeExpression(sb, x.Y)
+			if err := writeExpression(sb, source, x.Y); err != nil {
+				return err
+			}
 			sb.WriteString("), FALSE)")
 		case parser.TokenNE:
 			sb.WriteString("coalesce((")
-			writeExpression(sb, x.X)
+			if err := writeExpression(sb, source, x.X); err != nil {
+				return err
+			}
 			sb.WriteString(") <> (")
-			writeExpression(sb, x.Y)
+			if err := writeExpression(sb, source, x.Y); err != nil {
+				return err
+			}
 			sb.WriteString("), FALSE)")
 		case parser.TokenCaseInsensitiveEq:
 			sb.WriteString("lower(")
-			writeExpression(sb, x.X)
+			if err := writeExpression(sb, source, x.X); err != nil {
+				return err
+			}
 			sb.WriteString(") = lower(")
-			writeExpression(sb, x.Y)
+			if err := writeExpression(sb, source, x.Y); err != nil {
+				return err
+			}
 			sb.WriteString(")")
 		case parser.TokenCaseInsensitiveNE:
 			sb.WriteString("lower(")
-			writeExpression(sb, x.X)
+			if err := writeExpression(sb, source, x.X); err != nil {
+				return err
+			}
 			sb.WriteString(") <> lower(")
-			writeExpression(sb, x.Y)
+			if err := writeExpression(sb, source, x.Y); err != nil {
+				return err
+			}
 			sb.WriteString(")")
 		default:
 			if sqlOp, ok := binaryOps[x.Op]; ok {
 				sb.WriteString("(")
-				writeExpression(sb, x.X)
+				if err := writeExpression(sb, source, x.X); err != nil {
+					return err
+				}
 				sb.WriteString(") ")
 				sb.WriteString(sqlOp)
 				sb.WriteString(" (")
-				writeExpression(sb, x.Y)
+				if err := writeExpression(sb, source, x.Y); err != nil {
+					return err
+				}
 				sb.WriteString(")")
 			} else {
 				fmt.Fprintf(sb, "NULL /* unhandled %s binary op */ ", x.Op)
 			}
 		}
 	case *parser.CallExpr:
-		sb.WriteString(x.Func.Name)
-		sb.WriteString("(")
-		for i, arg := range x.Args {
-			if i > 0 {
-				sb.WriteString(", ")
+		switch x.Func.Name {
+		case "not":
+			if len(x.Args) != 1 {
+				return &compileError{
+					source: source,
+					span: parser.Span{
+						Start: x.Lparen.End,
+						End:   x.Rparen.Start,
+					},
+					err: fmt.Errorf("not(x) takes a single argument (got %d)", len(x.Args)),
+				}
 			}
-			writeExpression(sb, arg)
+			sb.WriteString("NOT (")
+			if err := writeExpression(sb, source, x.Args[0]); err != nil {
+				return err
+			}
+			sb.WriteString(")")
+		default:
+			sb.WriteString(x.Func.Name)
+			sb.WriteString("(")
+			for i, arg := range x.Args {
+				if i > 0 {
+					sb.WriteString(", ")
+				}
+				if err := writeExpression(sb, source, arg); err != nil {
+					return err
+				}
+			}
+			sb.WriteString(")")
 		}
-		sb.WriteString(")")
 	default:
 		fmt.Fprintf(sb, "NULL /* unhandled %T expression */", x)
 	}
+	return nil
 }
 
 func quoteSQLString(sb *strings.Builder, s string) {
@@ -316,4 +376,37 @@ func quoteSQLString(sb *strings.Builder, s string) {
 		}
 	}
 	sb.WriteString("'")
+}
+
+type compileError struct {
+	source string
+	span   parser.Span
+	err    error
+}
+
+func (e *compileError) Error() string {
+	line, col := linecol(e.source, e.span.Start)
+	return fmt.Sprintf("%d:%d: %s", line, col, e.err.Error())
+}
+
+func (e *compileError) Unwrap() error {
+	return e.err
+}
+
+func linecol(source string, pos int) (line, col int) {
+	line, col = 1, 1
+	for _, c := range source[:pos] {
+		switch c {
+		case '\n':
+			line++
+			col = 1
+		case '\t':
+			const tabWidth = 8
+			tabLoc := (col - 1) % tabWidth
+			col += tabWidth - tabLoc
+		default:
+			col++
+		}
+	}
+	return
 }
