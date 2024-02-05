@@ -1,0 +1,7 @@
+1,TokenIdentifier
+2,TokenQuotedIdentifier
+3,TokenNumber
+4,TokenString
+5,TokenAnd
+6,TokenOr
+-1,TokenError

@@ -347,6 +347,38 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 				return err
 			}
 			sb.WriteString(")")
+		case "isnull":
+			if len(x.Args) != 1 {
+				return &compileError{
+					source: source,
+					span: parser.Span{
+						Start: x.Lparen.End,
+						End:   x.Rparen.Start,
+					},
+					err: fmt.Errorf("isnull(x) takes a single argument (got %d)", len(x.Args)),
+				}
+			}
+			sb.WriteString("(")
+			if err := writeExpression(sb, source, x.Args[0]); err != nil {
+				return err
+			}
+			sb.WriteString(") IS NULL")
+		case "isnotnull":
+			if len(x.Args) != 1 {
+				return &compileError{
+					source: source,
+					span: parser.Span{
+						Start: x.Lparen.End,
+						End:   x.Rparen.Start,
+					},
+					err: fmt.Errorf("isnotnull(x) takes a single argument (got %d)", len(x.Args)),
+				}
+			}
+			sb.WriteString("(")
+			if err := writeExpression(sb, source, x.Args[0]); err != nil {
+				return err
+			}
+			sb.WriteString(") IS NOT NULL")
 		default:
 			sb.WriteString(x.Func.Name)
 			sb.WriteString("(")
