@@ -97,7 +97,7 @@ const (
 	// The Value will be the empty string.
 	TokenRParen
 
-	// TokenBy is the keyword "or".
+	// TokenBy is the keyword "by".
 	// The Value will be the empty string.
 	TokenBy
 
