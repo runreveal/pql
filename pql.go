@@ -117,6 +117,12 @@ func (sub *subquery) write(sb *strings.Builder) {
 		sb.WriteString(sub.sourceSQL)
 	default:
 		fmt.Fprintf(sb, "/* unsupported operator %T */", op)
+		return
+	}
+
+	if sub.take != nil {
+		sb.WriteString(" LIMIT ")
+		writeExpression(sb, sub.take.RowCount)
 	}
 }
 
@@ -144,4 +150,30 @@ func quoteIdentifier(sb *strings.Builder, name string) {
 		}
 	}
 	sb.WriteString(`"`)
+}
+
+func writeExpression(sb *strings.Builder, x parser.Expr) {
+	switch x := x.(type) {
+	case *parser.Ident:
+		quoteIdentifier(sb, x.Name)
+	case *parser.BasicLit:
+		switch x.Kind {
+		case parser.TokenNumber:
+			sb.WriteString(x.Value)
+		case parser.TokenString:
+			sb.WriteString("'")
+			for _, b := range []byte(x.Value) {
+				if b == '\'' {
+					sb.WriteString("''")
+				} else {
+					sb.WriteByte(b)
+				}
+			}
+			sb.WriteString("'")
+		default:
+			fmt.Fprintf(sb, "NULL /* unhandled %s literal */", x.Kind)
+		}
+	default:
+		fmt.Fprintf(sb, "NULL /* unhandled %T expression */", x)
+	}
 }
