@@ -66,9 +66,10 @@ func TestGoldens(t *testing.T) {
 }
 
 type goldenTest struct {
-	name string
-	dir  string
-	skip bool
+	name      string
+	dir       string
+	skip      bool
+	unordered bool
 }
 
 func findGoldenTests() ([]goldenTest, error) {
@@ -92,6 +93,11 @@ func findGoldenTests() ([]goldenTest, error) {
 			test.skip = true
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("find golden tests: check for skip: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(test.dir, "unordered")); err == nil {
+			test.unordered = true
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("find golden tests: check for unordered: %v", err)
 		}
 		result = append(result, test)
 	}

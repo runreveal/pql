@@ -10,5 +10,7 @@ The tests have the following files:
   and then inspected for correctness.
 - (Optional) `skip`: If a file called `skip` is present in the directory,
   the test will not be run.
+- (Optional) `unordered`: If a file called `unordered` is present in the directory,
+  the rows in `output.csv` may appear in any order during the query execution.
 
 See the [`testdata/Tables` directory](../Tables/) for the tables these tests use.

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -84,11 +85,33 @@ func TestClickhouseLocal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			if test.unordered {
+				sort.Slice(got, func(i, j int) bool {
+					return isRowLess(got[i], got[j])
+				})
+				sort.Slice(want, func(i, j int) bool {
+					return isRowLess(want[i], want[j])
+				})
+			}
+
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Errorf("query results (-want +got):\n%s", diff)
 			}
 		})
 	}
+}
+
+func isRowLess(row1, row2 []string) bool {
+	for i, n := 0, min(len(row1), len(row2)); i < n; i++ {
+		if row1[i] < row2[i] {
+			return true
+		}
+		if row1[i] > row2[i] {
+			return false
+		}
+	}
+	return len(row1) < len(row2)
 }
 
 type localTable struct {
