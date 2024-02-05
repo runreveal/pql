@@ -1,6 +1,6 @@
-State,EventType,DamageProperty
-ATLANTIC SOUTH,Waterspout,0
-FLORIDA,Heavy Rain,0
-FLORIDA,Tornado,6200000
-GEORGIA,Thunderstorm Wind,2000
-MISSISSIPPI,Thunderstorm Wind,20000
+EventId,State,EventType,DamageProperty
+11032,ATLANTIC SOUTH,Waterspout,0
+11098,FLORIDA,Heavy Rain,0
+60913,FLORIDA,Tornado,6200000
+11503,GEORGIA,Thunderstorm Wind,2000
+13913,MISSISSIPPI,Thunderstorm Wind,20000
