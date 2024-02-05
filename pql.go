@@ -221,6 +221,12 @@ func quoteIdentifier(sb *strings.Builder, name string) {
 	sb.WriteString(`"`)
 }
 
+var builtinIdentifiers = map[string]string{
+	"true":  "TRUE",
+	"false": "FALSE",
+	"null":  "NULL",
+}
+
 var binaryOps = map[parser.TokenKind]string{
 	parser.TokenAnd:   "AND",
 	parser.TokenOr:    "OR",
@@ -248,7 +254,11 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 
 	switch x := x.(type) {
 	case *parser.Ident:
-		quoteIdentifier(sb, x.Name)
+		if sql, ok := builtinIdentifiers[x.Name]; !x.Quoted && ok {
+			sb.WriteString(sql)
+		} else {
+			quoteIdentifier(sb, x.Name)
+		}
 	case *parser.BasicLit:
 		switch x.Kind {
 		case parser.TokenNumber:

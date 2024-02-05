@@ -706,6 +706,7 @@ func (p *parser) ident() (*Ident, error) {
 	return &Ident{
 		Name:     tok.Value,
 		NameSpan: tok.Span,
+		Quoted:   tok.Kind == TokenQuotedIdentifier,
 	}, nil
 }
 

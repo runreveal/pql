@@ -14,6 +14,9 @@ type Node interface {
 type Ident struct {
 	Name     string
 	NameSpan Span
+
+	// Quoted is true if the identifier is quoted.
+	Quoted bool
 }
 
 func (id *Ident) Span() Span {

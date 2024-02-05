@@ -33,6 +33,19 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "OnlyQuotedTableName",
+			query: `["StormEvents"]`,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 15),
+						Quoted:   true,
+					},
+				},
+			},
+		},
+		{
 			name:  "PipeCount",
 			query: "StormEvents | count",
 			want: &TabularExpr{
