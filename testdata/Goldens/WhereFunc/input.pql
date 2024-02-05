@@ -1,0 +1,2 @@
+Tokens
+| where abs(Value) == 1

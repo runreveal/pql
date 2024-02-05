@@ -112,6 +112,11 @@ func (sub *subquery) write(sb *strings.Builder) {
 	case nil:
 		sb.WriteString("SELECT * FROM ")
 		sb.WriteString(sub.sourceSQL)
+	case *parser.WhereOperator:
+		sb.WriteString("SELECT * FROM ")
+		sb.WriteString(sub.sourceSQL)
+		sb.WriteString(" WHERE ")
+		writeExpression(sb, op.Predicate)
 	case *parser.CountOperator:
 		sb.WriteString("SELECT COUNT(*) FROM ")
 		sb.WriteString(sub.sourceSQL)
@@ -172,7 +177,31 @@ func quoteIdentifier(sb *strings.Builder, name string) {
 	sb.WriteString(`"`)
 }
 
+var binaryOps = map[parser.TokenKind]string{
+	parser.TokenAnd:   "AND",
+	parser.TokenOr:    "OR",
+	parser.TokenPlus:  "+",
+	parser.TokenMinus: "-",
+	parser.TokenStar:  "*",
+	parser.TokenSlash: "/",
+	parser.TokenMod:   "%",
+	parser.TokenLT:    "<",
+	parser.TokenLE:    "<=",
+	parser.TokenGT:    ">",
+	parser.TokenGE:    ">=",
+}
+
 func writeExpression(sb *strings.Builder, x parser.Expr) {
+	// Unwrap any parentheses.
+	// We manually insert parentheses as needed.
+	for {
+		p, ok := x.(*parser.ParenExpr)
+		if !ok {
+			break
+		}
+		x = p
+	}
+
 	switch x := x.(type) {
 	case *parser.Ident:
 		quoteIdentifier(sb, x.Name)
@@ -193,6 +222,65 @@ func writeExpression(sb *strings.Builder, x parser.Expr) {
 		default:
 			fmt.Fprintf(sb, "NULL /* unhandled %s literal */", x.Kind)
 		}
+	case *parser.UnaryExpr:
+		switch x.Op {
+		case parser.TokenPlus:
+			sb.WriteString("+")
+		case parser.TokenMinus:
+			sb.WriteString("-")
+		default:
+			fmt.Fprintf(sb, "/* unhandled %s unary op */ ", x.Op)
+		}
+		writeExpression(sb, x.X)
+	case *parser.BinaryExpr:
+		switch x.Op {
+		case parser.TokenEq:
+			sb.WriteString("coalesce((")
+			writeExpression(sb, x.X)
+			sb.WriteString(") = (")
+			writeExpression(sb, x.Y)
+			sb.WriteString("), FALSE)")
+		case parser.TokenNE:
+			sb.WriteString("coalesce((")
+			writeExpression(sb, x.X)
+			sb.WriteString(") <> (")
+			writeExpression(sb, x.Y)
+			sb.WriteString("), FALSE)")
+		case parser.TokenCaseInsensitiveEq:
+			sb.WriteString("lower(")
+			writeExpression(sb, x.X)
+			sb.WriteString(") = lower(")
+			writeExpression(sb, x.Y)
+			sb.WriteString(")")
+		case parser.TokenCaseInsensitiveNE:
+			sb.WriteString("lower(")
+			writeExpression(sb, x.X)
+			sb.WriteString(") <> lower(")
+			writeExpression(sb, x.Y)
+			sb.WriteString(")")
+		default:
+			if sqlOp, ok := binaryOps[x.Op]; ok {
+				sb.WriteString("(")
+				writeExpression(sb, x.X)
+				sb.WriteString(") ")
+				sb.WriteString(sqlOp)
+				sb.WriteString(" (")
+				writeExpression(sb, x.Y)
+				sb.WriteString(")")
+			} else {
+				fmt.Fprintf(sb, "NULL /* unhandled %s binary op */ ", x.Op)
+			}
+		}
+	case *parser.CallExpr:
+		sb.WriteString(x.Func.Name)
+		sb.WriteString("(")
+		for i, arg := range x.Args {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			writeExpression(sb, arg)
+		}
+		sb.WriteString(")")
 	default:
 		fmt.Fprintf(sb, "NULL /* unhandled %T expression */", x)
 	}

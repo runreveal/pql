@@ -1,0 +1,3 @@
+StormEvents
+| where DamageProperty > 5000
+  and EventType == "Thunderstorm Wind"
