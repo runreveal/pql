@@ -14,8 +14,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-const outputCSVFilename = "output.csv"
-
 func TestClickhouseLocal(t *testing.T) {
 	clickhouseExe, err := exec.LookPath("clickhouse")
 	if err != nil {
@@ -26,9 +24,13 @@ func TestClickhouseLocal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tables, err := findLocalTables(filepath.Join("testdata", "Tables"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, test := range tests {
-		wantCSV, wantCSVError := os.ReadFile(filepath.Join(test.dir, outputCSVFilename))
+		wantCSV, wantCSVError := os.ReadFile(filepath.Join(test.dir, "output.csv"))
 		if errors.Is(wantCSVError, os.ErrNotExist) {
 			continue
 		}
@@ -52,12 +54,11 @@ func TestClickhouseLocal(t *testing.T) {
 
 			var args []string
 			args = append(args, "local", "--format", "CSV")
-			tables, err := findLocalTables(test.dir)
-			if err != nil {
-				t.Fatal(err)
-			}
+			sb := new(strings.Builder)
 			for _, tab := range tables {
-				args = append(args, "--query", fmt.Sprintf("CREATE TABLE \"%s\" AS file('%s');", tab.name, tab.filename))
+				sb.Reset()
+				quoteSQLString(sb, tab.filename)
+				args = append(args, "--query", fmt.Sprintf("CREATE TABLE \"%s\" AS file(%s);", tab.name, sb))
 			}
 			args = append(args, "--query", query)
 
@@ -95,23 +96,26 @@ type localTable struct {
 	filename string
 }
 
-// findLocalTables finds all CSV files in a golden test directory that represent tables.
+// findLocalTables finds all CSV files in a directory that represent tables.
 func findLocalTables(dir string) ([]localTable, error) {
+	var err error
+	dir, err = filepath.Abs(dir)
+	if err != nil {
+		return nil, fmt.Errorf("find local tables: %v", err)
+	}
 	listing, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("find local tables: %v", err)
 	}
+
 	var result []localTable
 	for _, entry := range listing {
 		filename := entry.Name()
-		if filename == outputCSVFilename {
-			continue
-		}
 		baseName, isCSV := strings.CutSuffix(filename, ".csv")
 		if entry.Type().IsRegular() && isCSV && !shouldIgnoreFilename(filename) {
 			result = append(result, localTable{
 				name:     baseName,
-				filename: filename,
+				filename: filepath.Join(dir, filename),
 			})
 		}
 	}

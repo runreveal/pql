@@ -210,15 +210,7 @@ func writeExpression(sb *strings.Builder, x parser.Expr) {
 		case parser.TokenNumber:
 			sb.WriteString(x.Value)
 		case parser.TokenString:
-			sb.WriteString("'")
-			for _, b := range []byte(x.Value) {
-				if b == '\'' {
-					sb.WriteString("''")
-				} else {
-					sb.WriteByte(b)
-				}
-			}
-			sb.WriteString("'")
+			quoteSQLString(sb, x.Value)
 		default:
 			fmt.Fprintf(sb, "NULL /* unhandled %s literal */", x.Kind)
 		}
@@ -284,4 +276,16 @@ func writeExpression(sb *strings.Builder, x parser.Expr) {
 	default:
 		fmt.Fprintf(sb, "NULL /* unhandled %T expression */", x)
 	}
+}
+
+func quoteSQLString(sb *strings.Builder, s string) {
+	sb.WriteString("'")
+	for _, b := range []byte(s) {
+		if b == '\'' {
+			sb.WriteString("''")
+		} else {
+			sb.WriteByte(b)
+		}
+	}
+	sb.WriteString("'")
 }
