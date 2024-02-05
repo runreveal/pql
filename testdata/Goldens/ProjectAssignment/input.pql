@@ -1,0 +1,2 @@
+StormEvents
+| project Id = EventId, DamagePropertyK = DamageProperty / 1000

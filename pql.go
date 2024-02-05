@@ -57,7 +57,7 @@ func splitQueries(expr *parser.TabularExpr) ([]*subquery, error) {
 	for i := 0; i < len(expr.Operators); i++ {
 		switch op := expr.Operators[i].(type) {
 		case *parser.SortOperator:
-			if lastSubquery != nil && lastSubquery.sort == nil && lastSubquery.take == nil {
+			if lastSubquery != nil && canAttachSort(lastSubquery.op) && lastSubquery.sort == nil && lastSubquery.take == nil {
 				lastSubquery.sort = op
 			} else {
 				lastSubquery = &subquery{
@@ -66,7 +66,7 @@ func splitQueries(expr *parser.TabularExpr) ([]*subquery, error) {
 				subqueries = append(subqueries, lastSubquery)
 			}
 		case *parser.TakeOperator:
-			if lastSubquery != nil && lastSubquery.take == nil {
+			if lastSubquery != nil && canAttachSort(lastSubquery.op) && lastSubquery.take == nil {
 				lastSubquery.take = op
 			} else {
 				lastSubquery = &subquery{
@@ -107,10 +107,38 @@ func splitQueries(expr *parser.TabularExpr) ([]*subquery, error) {
 	return subqueries, nil
 }
 
+// canAttachSort reports whether the given operator's subquery can have a sort clause attached.
+// This becomes significant for operators like "project"
+// because they change the identifiers in scope.
+func canAttachSort(op parser.TabularOperator) bool {
+	switch op.(type) {
+	case *parser.ProjectOperator, *parser.SummarizeOperator:
+		return false
+	default:
+		return true
+	}
+}
+
 func (sub *subquery) write(sb *strings.Builder) {
 	switch op := sub.op.(type) {
 	case nil:
 		sb.WriteString("SELECT * FROM ")
+		sb.WriteString(sub.sourceSQL)
+	case *parser.ProjectOperator:
+		sb.WriteString("SELECT ")
+		for i, col := range op.Cols {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			if col.X == nil {
+				writeExpression(sb, col.Name)
+			} else {
+				writeExpression(sb, col.X)
+			}
+			sb.WriteString(" AS ")
+			quoteIdentifier(sb, col.Name.Name)
+		}
+		sb.WriteString(" FROM ")
 		sb.WriteString(sub.sourceSQL)
 	case *parser.WhereOperator:
 		sb.WriteString("SELECT * FROM ")

@@ -1,0 +1,4 @@
+StormEvents
+| sort by EventId asc
+| take 3
+| project State, EventType, DamageProperty
