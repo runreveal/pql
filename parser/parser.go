@@ -70,13 +70,13 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 				returnedError = joinErrors(returnedError, &parseError{
 					source: p.source,
 					span:   pipeToken.Span,
-					err:    errors.New("unknown syntax after table data source"),
+					err:    fmt.Errorf("expected '|' after table data source, got %s", formatToken(p.source, pipeToken)),
 				})
 			} else {
 				returnedError = joinErrors(returnedError, &parseError{
 					source: p.source,
 					span:   pipeToken.Span,
-					err:    errors.New("unknown syntax after operator"),
+					err:    fmt.Errorf("expected '|', got %s", formatToken(p.source, pipeToken)),
 				})
 			}
 			p.skipTo(TokenPipe)
@@ -221,18 +221,12 @@ func (p *parser) sortOperator(pipe, keyword Token) (*SortOperator, error) {
 				// Good, but wait until next switch statement.
 				p.prev()
 			default:
-				return op, &parseError{
-					source: p.source,
-					span:   tok.Span,
-					err:    fmt.Errorf("expected 'asc', 'desc', 'nulls', or a comma, got %s", formatToken(p.source, tok)),
-				}
+				p.prev()
+				return op, nil
 			}
 		default:
-			return op, &parseError{
-				source: p.source,
-				span:   tok.Span,
-				err:    fmt.Errorf("expected 'asc', 'desc', 'nulls', or a comma, got %s", formatToken(p.source, tok)),
-			}
+			p.prev()
+			return op, nil
 		}
 
 		// nulls first/last
@@ -252,6 +246,7 @@ func (p *parser) sortOperator(pipe, keyword Token) (*SortOperator, error) {
 				term.NullsFirst = false
 				term.NullsSpan = newSpan(tok.Span.Start, tok2.Span.End)
 			default:
+				p.prev()
 				return op, &parseError{
 					source: p.source,
 					span:   tok2.Span,
@@ -259,11 +254,8 @@ func (p *parser) sortOperator(pipe, keyword Token) (*SortOperator, error) {
 				}
 			}
 		default:
-			return op, &parseError{
-				source: p.source,
-				span:   tok.Span,
-				err:    fmt.Errorf("expected 'nulls' or a comma, got %s", formatToken(p.source, tok)),
-			}
+			p.prev()
+			return op, nil
 		}
 
 		// Check for a comma to see if we should proceed.

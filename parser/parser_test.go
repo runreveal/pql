@@ -632,6 +632,43 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "SortByTake",
+			query: "foo | sort by bar | take 1",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "foo",
+						NameSpan: newSpan(0, 3),
+					},
+				},
+				Operators: []TabularOperator{
+					&SortOperator{
+						Pipe:    newSpan(4, 5),
+						Keyword: newSpan(6, 13),
+						Terms: []*SortTerm{
+							{
+								X: &Ident{
+									Name:     "bar",
+									NameSpan: newSpan(14, 17),
+								},
+								AscDescSpan: nullSpan(),
+								NullsSpan:   nullSpan(),
+							},
+						},
+					},
+					&TakeOperator{
+						Pipe:    newSpan(18, 19),
+						Keyword: newSpan(20, 24),
+						RowCount: &BasicLit{
+							Kind:      TokenNumber,
+							Value:     "1",
+							ValueSpan: newSpan(25, 26),
+						},
+					},
+				},
+			},
+		},
+		{
 			name:  "SortByMultiple",
 			query: "StormEvents | sort by State asc, StartTime desc",
 			want: &TabularExpr{
