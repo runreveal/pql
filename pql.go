@@ -116,8 +116,28 @@ func (sub *subquery) write(sb *strings.Builder) {
 		sb.WriteString("SELECT COUNT(*) FROM ")
 		sb.WriteString(sub.sourceSQL)
 	default:
-		fmt.Fprintf(sb, "/* unsupported operator %T */", op)
+		fmt.Fprintf(sb, "SELECT NULL /* unsupported operator %T */", op)
 		return
+	}
+
+	if sub.sort != nil {
+		sb.WriteString(" ORDER BY ")
+		for i, term := range sub.sort.Terms {
+			writeExpression(sb, term.X)
+			if term.Asc {
+				sb.WriteString(" ASC")
+			} else {
+				sb.WriteString(" DESC")
+			}
+			if term.NullsFirst {
+				sb.WriteString(" NULLS FIRST")
+			} else {
+				sb.WriteString(" NULLS LAST")
+			}
+			if i < len(sub.sort.Terms)-1 {
+				sb.WriteString(", ")
+			}
+		}
 	}
 
 	if sub.take != nil {

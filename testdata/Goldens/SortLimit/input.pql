@@ -1,0 +1,3 @@
+StormEvents
+| sort by DamageProperty, State asc
+| take 3
