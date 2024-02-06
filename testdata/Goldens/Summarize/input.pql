@@ -1,0 +1,3 @@
+SourceFiles
+| summarize TotalLines=sum(LineCount) by Directory, IsTest=endsWith(FileName, "_test.go")
+| sort by Directory asc, IsTest asc

@@ -148,6 +148,54 @@ func (sub *subquery) write(sb *strings.Builder, source string) error {
 		}
 		sb.WriteString(" FROM ")
 		sb.WriteString(sub.sourceSQL)
+	case *parser.SummarizeOperator:
+		sb.WriteString("SELECT ")
+		for i, col := range op.GroupBy {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			// TODO(maybe): Verify that these are aggregation function calls?
+			if err := writeExpression(sb, source, col.X); err != nil {
+				return err
+			}
+			sb.WriteString(" AS ")
+			if col.Name != nil {
+				quoteIdentifier(sb, col.Name.Name)
+			} else {
+				span := col.X.Span()
+				quoteIdentifier(sb, source[span.Start:span.End])
+			}
+		}
+		for i, col := range op.Cols {
+			if i > 0 || len(op.GroupBy) > 0 {
+				sb.WriteString(", ")
+			}
+			if err := writeExpression(sb, source, col.X); err != nil {
+				return err
+			}
+			sb.WriteString(" AS ")
+			if col.Name != nil {
+				quoteIdentifier(sb, col.Name.Name)
+			} else {
+				span := col.X.Span()
+				quoteIdentifier(sb, source[span.Start:span.End])
+			}
+		}
+
+		sb.WriteString(" FROM ")
+		sb.WriteString(sub.sourceSQL)
+
+		if len(op.GroupBy) > 0 {
+			sb.WriteString(" GROUP BY ")
+			for i, col := range op.GroupBy {
+				if i > 0 {
+					sb.WriteString(", ")
+				}
+				if err := writeExpression(sb, source, col.X); err != nil {
+					return err
+				}
+			}
+		}
 	case *parser.WhereOperator:
 		sb.WriteString("SELECT * FROM ")
 		sb.WriteString(sub.sourceSQL)
@@ -412,6 +460,34 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 				}
 				sb.WriteString(")")
 			}
+		case "count":
+			if len(x.Args) != 0 {
+				return &compileError{
+					source: source,
+					span: parser.Span{
+						Start: x.Lparen.End,
+						End:   x.Rparen.Start,
+					},
+					err: fmt.Errorf("count() takes no arguments (got %d)", len(x.Args)),
+				}
+			}
+			sb.WriteString("count(*)")
+		case "countif":
+			if len(x.Args) != 1 {
+				return &compileError{
+					source: source,
+					span: parser.Span{
+						Start: x.Lparen.End,
+						End:   x.Rparen.Start,
+					},
+					err: fmt.Errorf("countif(x) takes a single argument (got %d)", len(x.Args)),
+				}
+			}
+			sb.WriteString("sum(CASE WHEN coalesce(")
+			if err := writeExpression(sb, source, x.Args[0]); err != nil {
+				return err
+			}
+			sb.WriteString(", FALSE) THEN 1 ELSE 0 END)")
 		default:
 			sb.WriteString(x.Func.Name)
 			sb.WriteString("(")

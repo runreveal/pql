@@ -1,0 +1,3 @@
+SourceFiles
+| summarize NonTestFiles=countif(not(endsWith(FileName, "_test.go"))) by Directory
+| sort by Directory asc
