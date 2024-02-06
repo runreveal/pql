@@ -136,6 +136,22 @@ func (op *TakeOperator) Span() Span {
 	return newSpan(op.Pipe.Start, op.RowCount.Span().End)
 }
 
+// TopOperator represents a `| top` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type TopOperator struct {
+	Pipe     Span
+	Keyword  Span
+	RowCount Expr
+	By       Span
+	Col      *SortTerm
+}
+
+func (op *TopOperator) tabularOperator() {}
+
+func (op *TopOperator) Span() Span {
+	return newSpan(op.Pipe.Start, op.Col.Span().End)
+}
+
 // ProjectOperator represents a `| project` operator in a [TabularExpr].
 // It implements [TabularOperator].
 type ProjectOperator struct {

@@ -1079,6 +1079,38 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "Top",
+			query: "StormEvents | top 3 by InjuriesDirect",
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&TopOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 17),
+						RowCount: &BasicLit{
+							Kind:      TokenNumber,
+							Value:     "3",
+							ValueSpan: newSpan(18, 19),
+						},
+						By: newSpan(20, 22),
+						Col: &SortTerm{
+							X: &Ident{
+								Name:     "InjuriesDirect",
+								NameSpan: newSpan(23, 37),
+							},
+							AscDescSpan: nullSpan(),
+							NullsSpan:   nullSpan(),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	equateInvalidSpans := cmp.FilterValues(func(span1, span2 Span) bool {

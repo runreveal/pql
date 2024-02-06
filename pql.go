@@ -79,6 +79,21 @@ func splitQueries(expr *parser.TabularExpr) ([]*subquery, error) {
 				}
 				subqueries = append(subqueries, lastSubquery)
 			}
+		case *parser.TopOperator:
+			if lastSubquery == nil || !canAttachSort(lastSubquery.op) || lastSubquery.sort != nil || lastSubquery.take != nil {
+				lastSubquery = new(subquery)
+				subqueries = append(subqueries, lastSubquery)
+			}
+			lastSubquery.sort = &parser.SortOperator{
+				Pipe:    op.Pipe,
+				Keyword: op.Keyword,
+				Terms:   []*parser.SortTerm{op.Col},
+			}
+			lastSubquery.take = &parser.TakeOperator{
+				Pipe:     op.Pipe,
+				Keyword:  op.Keyword,
+				RowCount: op.RowCount,
+			}
 		default:
 			lastSubquery = &subquery{
 				op: op,

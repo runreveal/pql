@@ -1,0 +1,1 @@
+SELECT * FROM "SourceFiles" ORDER BY "LineCount" DESC NULLS LAST LIMIT 3;
