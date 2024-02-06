@@ -1,0 +1,3 @@
+SourceFiles
+| sort by LineCount desc, FileName asc
+| project FileName, Size = iff(LineCount >= 1000, "Large", "Smol")

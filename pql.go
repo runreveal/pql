@@ -4,6 +4,7 @@ package pql
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/runreveal/pql/parser"
 )
@@ -388,107 +389,11 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 			}
 		}
 	case *parser.CallExpr:
-		switch x.Func.Name {
-		case "not":
-			if len(x.Args) != 1 {
-				return &compileError{
-					source: source,
-					span: parser.Span{
-						Start: x.Lparen.End,
-						End:   x.Rparen.Start,
-					},
-					err: fmt.Errorf("not(x) takes a single argument (got %d)", len(x.Args)),
-				}
-			}
-			sb.WriteString("NOT (")
-			if err := writeExpression(sb, source, x.Args[0]); err != nil {
+		if f := initKnownFunctions()[x.Func.Name]; f != nil {
+			if err := f(sb, source, x); err != nil {
 				return err
 			}
-			sb.WriteString(")")
-		case "isnull":
-			if len(x.Args) != 1 {
-				return &compileError{
-					source: source,
-					span: parser.Span{
-						Start: x.Lparen.End,
-						End:   x.Rparen.Start,
-					},
-					err: fmt.Errorf("isnull(x) takes a single argument (got %d)", len(x.Args)),
-				}
-			}
-			sb.WriteString("(")
-			if err := writeExpression(sb, source, x.Args[0]); err != nil {
-				return err
-			}
-			sb.WriteString(") IS NULL")
-		case "isnotnull":
-			if len(x.Args) != 1 {
-				return &compileError{
-					source: source,
-					span: parser.Span{
-						Start: x.Lparen.End,
-						End:   x.Rparen.Start,
-					},
-					err: fmt.Errorf("isnotnull(x) takes a single argument (got %d)", len(x.Args)),
-				}
-			}
-			sb.WriteString("(")
-			if err := writeExpression(sb, source, x.Args[0]); err != nil {
-				return err
-			}
-			sb.WriteString(") IS NOT NULL")
-		case "strcat":
-			if len(x.Args) == 0 {
-				return &compileError{
-					source: source,
-					span: parser.Span{
-						Start: x.Lparen.End,
-						End:   x.Rparen.Start,
-					},
-					err: fmt.Errorf("strcat(x) takes least one argument"),
-				}
-			}
-			sb.WriteString("(")
-			if err := writeExpression(sb, source, x.Args[0]); err != nil {
-				return err
-			}
-			sb.WriteString(")")
-			for _, arg := range x.Args[1:] {
-				sb.WriteString(" || (")
-				if err := writeExpression(sb, source, arg); err != nil {
-					return err
-				}
-				sb.WriteString(")")
-			}
-		case "count":
-			if len(x.Args) != 0 {
-				return &compileError{
-					source: source,
-					span: parser.Span{
-						Start: x.Lparen.End,
-						End:   x.Rparen.Start,
-					},
-					err: fmt.Errorf("count() takes no arguments (got %d)", len(x.Args)),
-				}
-			}
-			sb.WriteString("count(*)")
-		case "countif":
-			if len(x.Args) != 1 {
-				return &compileError{
-					source: source,
-					span: parser.Span{
-						Start: x.Lparen.End,
-						End:   x.Rparen.Start,
-					},
-					err: fmt.Errorf("countif(x) takes a single argument (got %d)", len(x.Args)),
-				}
-			}
-			sb.WriteString("sum(CASE WHEN coalesce(")
-			if err := writeExpression(sb, source, x.Args[0]); err != nil {
-				return err
-			}
-			sb.WriteString(", FALSE) THEN 1 ELSE 0 END)")
-		default:
+		} else {
 			sb.WriteString(x.Func.Name)
 			sb.WriteString("(")
 			for i, arg := range x.Args {
@@ -504,6 +409,171 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 	default:
 		fmt.Fprintf(sb, "NULL /* unhandled %T expression */", x)
 	}
+	return nil
+}
+
+var knownFunctions struct {
+	init sync.Once
+	m    map[string]func(sb *strings.Builder, source string, x *parser.CallExpr) error
+}
+
+func initKnownFunctions() map[string]func(sb *strings.Builder, source string, x *parser.CallExpr) error {
+	knownFunctions.init.Do(func() {
+		knownFunctions.m = map[string]func(sb *strings.Builder, source string, x *parser.CallExpr) error{
+			"not":       writeNotFunction,
+			"isnull":    writeIsNullFunction,
+			"isnotnull": writeIsNotNullFunction,
+			"strcat":    writeStrcatFunction,
+			"count":     writeCountFunction,
+			"countif":   writeCountIfFunction,
+			"iff":       writeIfFunction,
+			"iif":       writeIfFunction,
+		}
+	})
+	return knownFunctions.m
+}
+
+func writeNotFunction(sb *strings.Builder, source string, x *parser.CallExpr) error {
+	if len(x.Args) != 1 {
+		return &compileError{
+			source: source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("not(x) takes a single argument (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("NOT (")
+	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+		return err
+	}
+	sb.WriteString(")")
+	return nil
+}
+
+func writeIsNullFunction(sb *strings.Builder, source string, x *parser.CallExpr) error {
+	if len(x.Args) != 1 {
+		return &compileError{
+			source: source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("isnull(x) takes a single argument (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("(")
+	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+		return err
+	}
+	sb.WriteString(") IS NULL")
+	return nil
+}
+
+func writeIsNotNullFunction(sb *strings.Builder, source string, x *parser.CallExpr) error {
+	if len(x.Args) != 1 {
+		return &compileError{
+			source: source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("isnotnull(x) takes a single argument (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("(")
+	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+		return err
+	}
+	sb.WriteString(") IS NOT NULL")
+	return nil
+}
+
+func writeStrcatFunction(sb *strings.Builder, source string, x *parser.CallExpr) error {
+	if len(x.Args) == 0 {
+		return &compileError{
+			source: source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("strcat(x) takes least one argument"),
+		}
+	}
+	sb.WriteString("(")
+	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+		return err
+	}
+	sb.WriteString(")")
+	for _, arg := range x.Args[1:] {
+		sb.WriteString(" || (")
+		if err := writeExpression(sb, source, arg); err != nil {
+			return err
+		}
+		sb.WriteString(")")
+	}
+	return nil
+}
+
+func writeCountFunction(sb *strings.Builder, source string, x *parser.CallExpr) error {
+	if len(x.Args) != 0 {
+		return &compileError{
+			source: source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("count() takes no arguments (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("count(*)")
+	return nil
+}
+
+func writeCountIfFunction(sb *strings.Builder, source string, x *parser.CallExpr) error {
+	if len(x.Args) != 1 {
+		return &compileError{
+			source: source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("countif(x) takes a single argument (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("sum(CASE WHEN coalesce(")
+	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+		return err
+	}
+	sb.WriteString(", FALSE) THEN 1 ELSE 0 END)")
+	return nil
+}
+
+func writeIfFunction(sb *strings.Builder, source string, x *parser.CallExpr) error {
+	if len(x.Args) != 3 {
+		return &compileError{
+			source: source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("%s(if, then, else) takes 3 arguments (got %d)", x.Func.Name, len(x.Args)),
+		}
+	}
+	sb.WriteString("CASE WHEN coalesce(")
+	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+		return err
+	}
+	sb.WriteString(", FALSE) THEN ")
+	if err := writeExpression(sb, source, x.Args[1]); err != nil {
+		return err
+	}
+	sb.WriteString(" ELSE ")
+	if err := writeExpression(sb, source, x.Args[2]); err != nil {
+		return err
+	}
+	sb.WriteString(" END")
 	return nil
 }
 
