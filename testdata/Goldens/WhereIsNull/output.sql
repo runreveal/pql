@@ -1,1 +1,1 @@
-SELECT * FROM "Tokens" WHERE ("Value") IS NULL;
+SELECT * FROM "Tokens" WHERE "Value" IS NULL;

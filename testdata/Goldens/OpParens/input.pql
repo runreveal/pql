@@ -1,0 +1,3 @@
+Tokens
+| where Value - 3 > 0
+| sort by Value asc

@@ -341,31 +341,31 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 		default:
 			fmt.Fprintf(sb, "/* unhandled %s unary op */ ", x.Op)
 		}
-		if err := writeExpression(sb, source, x.X); err != nil {
+		if err := writeExpressionMaybeParen(sb, source, x.X); err != nil {
 			return err
 		}
 	case *parser.BinaryExpr:
 		switch x.Op {
 		case parser.TokenEq:
-			sb.WriteString("coalesce((")
-			if err := writeExpression(sb, source, x.X); err != nil {
+			sb.WriteString("coalesce(")
+			if err := writeExpressionMaybeParen(sb, source, x.X); err != nil {
 				return err
 			}
-			sb.WriteString(") = (")
-			if err := writeExpression(sb, source, x.Y); err != nil {
+			sb.WriteString(" = ")
+			if err := writeExpressionMaybeParen(sb, source, x.Y); err != nil {
 				return err
 			}
-			sb.WriteString("), FALSE)")
+			sb.WriteString(", FALSE)")
 		case parser.TokenNE:
-			sb.WriteString("coalesce((")
-			if err := writeExpression(sb, source, x.X); err != nil {
+			sb.WriteString("coalesce(")
+			if err := writeExpressionMaybeParen(sb, source, x.X); err != nil {
 				return err
 			}
-			sb.WriteString(") <> (")
-			if err := writeExpression(sb, source, x.Y); err != nil {
+			sb.WriteString(" <> ")
+			if err := writeExpressionMaybeParen(sb, source, x.Y); err != nil {
 				return err
 			}
-			sb.WriteString("), FALSE)")
+			sb.WriteString(", FALSE)")
 		case parser.TokenCaseInsensitiveEq:
 			sb.WriteString("lower(")
 			if err := writeExpression(sb, source, x.X); err != nil {
@@ -388,24 +388,22 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 			sb.WriteString(")")
 		default:
 			if sqlOp, ok := binaryOps[x.Op]; ok {
-				sb.WriteString("(")
-				if err := writeExpression(sb, source, x.X); err != nil {
+				if err := writeExpressionMaybeParen(sb, source, x.X); err != nil {
 					return err
 				}
-				sb.WriteString(") ")
+				sb.WriteString(" ")
 				sb.WriteString(sqlOp)
-				sb.WriteString(" (")
-				if err := writeExpression(sb, source, x.Y); err != nil {
+				sb.WriteString(" ")
+				if err := writeExpressionMaybeParen(sb, source, x.Y); err != nil {
 					return err
 				}
-				sb.WriteString(")")
 			} else {
 				fmt.Fprintf(sb, "NULL /* unhandled %s binary op */ ", x.Op)
 			}
 		}
 	case *parser.CallExpr:
 		if f := initKnownFunctions()[x.Func.Name]; f != nil {
-			if err := f(sb, source, x); err != nil {
+			if err := f.write(sb, source, x); err != nil {
 				return err
 			}
 		} else {
@@ -427,22 +425,53 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 	return nil
 }
 
-var knownFunctions struct {
-	init sync.Once
-	m    map[string]func(sb *strings.Builder, source string, x *parser.CallExpr) error
+func writeExpressionMaybeParen(sb *strings.Builder, source string, x parser.Expr) error {
+	for {
+		p, ok := x.(*parser.ParenExpr)
+		if !ok {
+			break
+		}
+		x = p
+	}
+
+	switch x := x.(type) {
+	case *parser.Ident, *parser.UnaryExpr, *parser.BasicLit:
+		return writeExpression(sb, source, x)
+	case *parser.CallExpr:
+		if f := initKnownFunctions()[x.Func.Name]; f == nil || !f.needsParens {
+			return writeExpression(sb, source, x)
+		}
+	}
+
+	sb.WriteString("(")
+	if err := writeExpression(sb, source, x); err != nil {
+		return err
+	}
+	sb.WriteString(")")
+	return nil
 }
 
-func initKnownFunctions() map[string]func(sb *strings.Builder, source string, x *parser.CallExpr) error {
+type functionRewrite struct {
+	write       func(sb *strings.Builder, source string, x *parser.CallExpr) error
+	needsParens bool
+}
+
+var knownFunctions struct {
+	init sync.Once
+	m    map[string]*functionRewrite
+}
+
+func initKnownFunctions() map[string]*functionRewrite {
 	knownFunctions.init.Do(func() {
-		knownFunctions.m = map[string]func(sb *strings.Builder, source string, x *parser.CallExpr) error{
-			"not":       writeNotFunction,
-			"isnull":    writeIsNullFunction,
-			"isnotnull": writeIsNotNullFunction,
-			"strcat":    writeStrcatFunction,
-			"count":     writeCountFunction,
-			"countif":   writeCountIfFunction,
-			"iff":       writeIfFunction,
-			"iif":       writeIfFunction,
+		knownFunctions.m = map[string]*functionRewrite{
+			"not":       {write: writeNotFunction},
+			"isnull":    {write: writeIsNullFunction, needsParens: true},
+			"isnotnull": {write: writeIsNotNullFunction, needsParens: true},
+			"strcat":    {write: writeStrcatFunction, needsParens: true},
+			"count":     {write: writeCountFunction},
+			"countif":   {write: writeCountIfFunction},
+			"iff":       {write: writeIfFunction, needsParens: true},
+			"iif":       {write: writeIfFunction, needsParens: true},
 		}
 	})
 	return knownFunctions.m
@@ -459,11 +488,10 @@ func writeNotFunction(sb *strings.Builder, source string, x *parser.CallExpr) er
 			err: fmt.Errorf("not(x) takes a single argument (got %d)", len(x.Args)),
 		}
 	}
-	sb.WriteString("NOT (")
-	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+	sb.WriteString("NOT ")
+	if err := writeExpressionMaybeParen(sb, source, x.Args[0]); err != nil {
 		return err
 	}
-	sb.WriteString(")")
 	return nil
 }
 
@@ -478,11 +506,10 @@ func writeIsNullFunction(sb *strings.Builder, source string, x *parser.CallExpr)
 			err: fmt.Errorf("isnull(x) takes a single argument (got %d)", len(x.Args)),
 		}
 	}
-	sb.WriteString("(")
-	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+	if err := writeExpressionMaybeParen(sb, source, x.Args[0]); err != nil {
 		return err
 	}
-	sb.WriteString(") IS NULL")
+	sb.WriteString(" IS NULL")
 	return nil
 }
 
@@ -497,11 +524,10 @@ func writeIsNotNullFunction(sb *strings.Builder, source string, x *parser.CallEx
 			err: fmt.Errorf("isnotnull(x) takes a single argument (got %d)", len(x.Args)),
 		}
 	}
-	sb.WriteString("(")
-	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+	if err := writeExpressionMaybeParen(sb, source, x.Args[0]); err != nil {
 		return err
 	}
-	sb.WriteString(") IS NOT NULL")
+	sb.WriteString(" IS NOT NULL")
 	return nil
 }
 
@@ -516,17 +542,14 @@ func writeStrcatFunction(sb *strings.Builder, source string, x *parser.CallExpr)
 			err: fmt.Errorf("strcat(x) takes least one argument"),
 		}
 	}
-	sb.WriteString("(")
-	if err := writeExpression(sb, source, x.Args[0]); err != nil {
+	if err := writeExpressionMaybeParen(sb, source, x.Args[0]); err != nil {
 		return err
 	}
-	sb.WriteString(")")
 	for _, arg := range x.Args[1:] {
-		sb.WriteString(" || (")
-		if err := writeExpression(sb, source, arg); err != nil {
+		sb.WriteString(" || ")
+		if err := writeExpressionMaybeParen(sb, source, arg); err != nil {
 			return err
 		}
-		sb.WriteString(")")
 	}
 	return nil
 }
