@@ -565,7 +565,7 @@ func writeCountFunction(sb *strings.Builder, source string, x *parser.CallExpr) 
 			err: fmt.Errorf("count() takes no arguments (got %d)", len(x.Args)),
 		}
 	}
-	sb.WriteString("count(*)")
+	sb.WriteString("count()")
 	return nil
 }
 
@@ -580,11 +580,11 @@ func writeCountIfFunction(sb *strings.Builder, source string, x *parser.CallExpr
 			err: fmt.Errorf("countif(x) takes a single argument (got %d)", len(x.Args)),
 		}
 	}
-	sb.WriteString("sum(CASE WHEN coalesce(")
+	sb.WriteString("count() FILTER (WHERE ")
 	if err := writeExpression(sb, source, x.Args[0]); err != nil {
 		return err
 	}
-	sb.WriteString(", FALSE) THEN 1 ELSE 0 END)")
+	sb.WriteString(")")
 	return nil
 }
 
