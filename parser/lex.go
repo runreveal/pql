@@ -97,6 +97,9 @@ const (
 	// The Value will be the empty string.
 	TokenRParen
 
+	// TokenBy is the keyword "in".
+	// The Value will be the empty string.
+	TokenIn
 	// TokenBy is the keyword "by".
 	// The Value will be the empty string.
 	TokenBy
@@ -299,8 +302,9 @@ func Scan(query string) []Token {
 
 var keywords = map[string]TokenKind{
 	"and": TokenAnd,
-	"or":  TokenOr,
 	"by":  TokenBy,
+	"in":  TokenIn,
+	"or":  TokenOr,
 }
 
 func (s *scanner) ident() Token {

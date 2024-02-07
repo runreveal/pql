@@ -260,6 +260,30 @@ func (expr *UnaryExpr) Span() Span {
 
 func (expr *UnaryExpr) expression() {}
 
+// An InExpr represents an "in" operator expression.
+type InExpr struct {
+	X      Expr
+	In     Span
+	Lparen Span
+	Vals   []Expr
+	Rparen Span
+}
+
+func (expr *InExpr) Span() Span {
+	switch {
+	case expr.Rparen.IsValid():
+		return newSpan(expr.X.Span().Start, expr.Rparen.End)
+	case len(expr.Vals) > 0:
+		return newSpan(expr.X.Span().Start, expr.Vals[len(expr.Vals)-1].Span().End)
+	case expr.Lparen.IsValid():
+		return newSpan(expr.X.Span().Start, expr.Lparen.End)
+	default:
+		return newSpan(expr.X.Span().Start, expr.In.End)
+	}
+}
+
+func (expr *InExpr) expression() {}
+
 // A ParenExpr represents a parenthized expression.
 type ParenExpr struct {
 	Lparen Span

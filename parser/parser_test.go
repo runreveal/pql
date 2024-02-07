@@ -523,6 +523,157 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name:  "In",
+			query: `StormEvents | where State in ("GEORGIA", "MISSISSIPPI")`,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
+						Predicate: &InExpr{
+							X: &Ident{
+								Name:     "State",
+								NameSpan: newSpan(20, 25),
+							},
+							In:     newSpan(26, 28),
+							Lparen: newSpan(29, 30),
+							Vals: []Expr{
+								&BasicLit{
+									Kind:      TokenString,
+									ValueSpan: newSpan(30, 39),
+									Value:     "GEORGIA",
+								},
+								&BasicLit{
+									Kind:      TokenString,
+									ValueSpan: newSpan(41, 54),
+									Value:     "MISSISSIPPI",
+								},
+							},
+							Rparen: newSpan(54, 55),
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "InAnd",
+			query: `StormEvents | where State in ("GEORGIA", "MISSISSIPPI") and DamageProperty > 10000`,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
+						Predicate: &BinaryExpr{
+							X: &InExpr{
+								X: &Ident{
+									Name:     "State",
+									NameSpan: newSpan(20, 25),
+								},
+								In:     newSpan(26, 28),
+								Lparen: newSpan(29, 30),
+								Vals: []Expr{
+									&BasicLit{
+										Kind:      TokenString,
+										ValueSpan: newSpan(30, 39),
+										Value:     "GEORGIA",
+									},
+									&BasicLit{
+										Kind:      TokenString,
+										ValueSpan: newSpan(41, 54),
+										Value:     "MISSISSIPPI",
+									},
+								},
+								Rparen: newSpan(54, 55),
+							},
+							Op:     TokenAnd,
+							OpSpan: newSpan(56, 59),
+							Y: &BinaryExpr{
+								X: &Ident{
+									Name:     "DamageProperty",
+									NameSpan: newSpan(60, 74),
+								},
+								Op:     TokenGT,
+								OpSpan: newSpan(75, 76),
+								Y: &BasicLit{
+									Kind:      TokenNumber,
+									Value:     "10000",
+									ValueSpan: newSpan(77, 82),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "InAndFlipped",
+			query: `StormEvents | where DamageProperty > 10000 and State in ("GEORGIA", "MISSISSIPPI")`,
+			want: &TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "StormEvents",
+						NameSpan: newSpan(0, 11),
+					},
+				},
+				Operators: []TabularOperator{
+					&WhereOperator{
+						Pipe:    newSpan(12, 13),
+						Keyword: newSpan(14, 19),
+						Predicate: &BinaryExpr{
+							X: &BinaryExpr{
+								X: &Ident{
+									Name:     "DamageProperty",
+									NameSpan: newSpan(20, 34),
+								},
+								Op:     TokenGT,
+								OpSpan: newSpan(35, 36),
+								Y: &BasicLit{
+									Kind:      TokenNumber,
+									Value:     "10000",
+									ValueSpan: newSpan(37, 42),
+								},
+							},
+							Op:     TokenAnd,
+							OpSpan: newSpan(43, 46),
+							Y: &InExpr{
+								X: &Ident{
+									Name:     "State",
+									NameSpan: newSpan(47, 52),
+								},
+								In:     newSpan(53, 55),
+								Lparen: newSpan(56, 57),
+								Vals: []Expr{
+									&BasicLit{
+										Kind:      TokenString,
+										ValueSpan: newSpan(57, 66),
+										Value:     "GEORGIA",
+									},
+									&BasicLit{
+										Kind:      TokenString,
+										ValueSpan: newSpan(68, 81),
+										Value:     "MISSISSIPPI",
+									},
+								},
+								Rparen: newSpan(81, 82),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name:  "BadArgument",
 			query: "foo | where strcat('a', .bork, 'x', 'y')",
 			err:   true,

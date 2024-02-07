@@ -401,6 +401,20 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 				fmt.Fprintf(sb, "NULL /* unhandled %s binary op */ ", x.Op)
 			}
 		}
+	case *parser.InExpr:
+		if err := writeExpressionMaybeParen(sb, source, x.X); err != nil {
+			return err
+		}
+		sb.WriteString(" IN (")
+		for i, y := range x.Vals {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			if err := writeExpressionMaybeParen(sb, source, y); err != nil {
+				return err
+			}
+		}
+		sb.WriteString(")")
 	case *parser.CallExpr:
 		if f := initKnownFunctions()[x.Func.Name]; f != nil {
 			if err := f.write(sb, source, x); err != nil {

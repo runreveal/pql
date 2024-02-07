@@ -555,6 +555,55 @@ func (p *parser) exprBinaryTrail(x Expr, minPrecedence int) (Expr, error) {
 			p.prev()
 			return x, finalError
 		}
+
+		if op1.Kind == TokenIn {
+			lparen, _ := p.next()
+			if lparen.Kind != TokenLParen {
+				x = &InExpr{
+					X:      x,
+					In:     op1.Span,
+					Lparen: nullSpan(),
+					Rparen: nullSpan(),
+				}
+				finalError = joinErrors(finalError, &parseError{
+					source: p.source,
+					span:   lparen.Span,
+					err:    fmt.Errorf("expected '(', got %s", formatToken(p.source, lparen)),
+				})
+				return x, finalError
+			}
+			vals, err := p.exprList()
+			if err != nil {
+				finalError = joinErrors(finalError, makeErrorOpaque(err))
+				p.skipTo(TokenRParen)
+			}
+			rparen, _ := p.next()
+			if rparen.Kind != TokenRParen {
+				x = &InExpr{
+					X:      x,
+					In:     op1.Span,
+					Lparen: lparen.Span,
+					Vals:   vals,
+					Rparen: nullSpan(),
+				}
+				finalError = joinErrors(finalError, &parseError{
+					source: p.source,
+					span:   lparen.Span,
+					err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, rparen)),
+				})
+				return x, finalError
+			}
+
+			x = &InExpr{
+				X:      x,
+				In:     op1.Span,
+				Lparen: lparen.Span,
+				Vals:   vals,
+				Rparen: rparen.Span,
+			}
+			continue
+		}
+
 		y, err := p.unaryExpr()
 		if err != nil {
 			finalError = joinErrors(finalError, makeErrorOpaque(err))
@@ -595,7 +644,7 @@ func operatorPrecedence(op TokenKind) int {
 	case TokenPlus, TokenMinus:
 		return 3
 	case TokenEq, TokenNE, TokenLT, TokenLE, TokenGT, TokenGE,
-		TokenCaseInsensitiveEq, TokenCaseInsensitiveNE:
+		TokenCaseInsensitiveEq, TokenCaseInsensitiveNE, TokenIn:
 		return 2
 	case TokenAnd:
 		return 1
