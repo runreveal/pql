@@ -6,7 +6,7 @@ into SQL.
 It has been specifically tested to work with the [Clickhouse SQL dialect][],
 but the generated SQL is intentionally database agnostic.
 
-For example, something like:
+For example, the following expression:
 
 ```plain
 StormEvents
@@ -14,7 +14,7 @@ StormEvents
 | top 3 by DamageProperty
 ```
 
-will be compiled to:
+will be compiled to SQL that is similar to:
 
 ```sql
 SELECT *
