@@ -19,7 +19,7 @@ will be compiled to:
 ```sql
 SELECT *
 FROM StormEvents
-WHERE DamageProperty > 5000 and EventType == 'Thunderstorm Wind'
+WHERE DamageProperty > 5000 AND EventType = 'Thunderstorm Wind'
 ORDER BY DamageProperty DESC
 LIMIT 3;
 ```
