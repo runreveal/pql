@@ -104,6 +104,10 @@ const (
 	// The Value will be the empty string.
 	TokenBy
 
+	// TokenSemi is the semicolon character (";").
+	// The Value will be the empty string.
+	TokenSemi
+
 	// TokenError is a marker for a scan error.
 	// The Value will contain the error message.
 	TokenError TokenKind = -1
@@ -292,12 +296,32 @@ func Scan(query string) []Token {
 					Span: newSpan(start, s.pos),
 				})
 			}
+		case c == ';':
+			tokens = append(tokens, Token{
+				Kind: TokenSemi,
+				Span: newSpan(start, s.pos),
+			})
 		default:
 			span := newSpan(start, s.pos)
 			tokens = append(tokens, errorToken(span, "unrecognized character %q", spanString(query, span)))
 		}
 	}
 	return tokens
+}
+
+// SplitStatements splits the given string by semicolons.
+func SplitStatements(source string) []string {
+	tokens := Scan(source)
+	var parts []string
+	start := 0
+	for _, tok := range tokens {
+		if tok.Kind == TokenSemi {
+			parts = append(parts, source[start:tok.Span.Start])
+			start = tok.Span.End
+		}
+	}
+	parts = append(parts, source[start:])
+	return parts
 }
 
 var keywords = map[string]TokenKind{
