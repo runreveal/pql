@@ -466,7 +466,9 @@ func writeExpressionMaybeParen(sb *strings.Builder, source string, x parser.Expr
 }
 
 type functionRewrite struct {
-	write       func(sb *strings.Builder, source string, x *parser.CallExpr) error
+	write func(sb *strings.Builder, source string, x *parser.CallExpr) error
+
+	// needsParens should be true if the output SQL can have a binary operator.
 	needsParens bool
 }
 
