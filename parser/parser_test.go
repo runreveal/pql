@@ -1306,3 +1306,13 @@ func FuzzParse(f *testing.F) {
 		Parse(query)
 	})
 }
+
+func BenchmarkParse(b *testing.B) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		if _, err := Parse(`StormEvents | where EventType == "Tornado" or EventType != "Thunderstorm Wind"`); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

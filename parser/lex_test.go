@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -446,7 +445,13 @@ func FuzzScan(f *testing.F) {
 	})
 }
 
-var tokenType = reflect.TypeOf((*Token)(nil)).Elem()
+func BenchmarkScan(b *testing.B) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		Scan(`StormEvents | where EventType == "Tornado" or EventType != "Thunderstorm Wind"`)
+	}
+}
 
 func TestSpan(t *testing.T) {
 	tests := []struct {
