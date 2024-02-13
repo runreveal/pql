@@ -1,0 +1,2 @@
+go test fuzz v1
+string("~~~3d14 + 3 /\xf5:2\xectr")

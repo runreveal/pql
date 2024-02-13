@@ -198,7 +198,9 @@ func Scan(query string) []Token {
 					Span: newSpan(start, s.pos),
 				})
 			default:
-				s.prev()
+				if ok {
+					s.prev()
+				}
 				tokens = append(tokens, Token{
 					Kind: TokenAssign,
 					Span: newSpan(start, s.pos),
@@ -218,7 +220,6 @@ func Scan(query string) []Token {
 					Span: newSpan(start, s.pos),
 				})
 			default:
-				s.prev()
 				// TODO(maybe): Turn this into logical inversion?
 				// KQL seems to use the not() function.
 				tokens = append(tokens,
@@ -277,7 +278,9 @@ func Scan(query string) []Token {
 					Span: newSpan(start, s.pos),
 				})
 			} else {
-				s.prev()
+				if ok {
+					s.prev()
+				}
 				tokens = append(tokens, Token{
 					Kind: TokenLT,
 					Span: newSpan(start, s.pos),
@@ -290,7 +293,9 @@ func Scan(query string) []Token {
 					Span: newSpan(start, s.pos),
 				})
 			} else {
-				s.prev()
+				if ok {
+					s.prev()
+				}
 				tokens = append(tokens, Token{
 					Kind: TokenGT,
 					Span: newSpan(start, s.pos),
