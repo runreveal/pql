@@ -10,6 +10,23 @@ type Node interface {
 	Span() Span
 }
 
+func nodeSpan(n Node) Span {
+	if n == nil {
+		return nullSpan()
+	}
+	return n.Span()
+}
+
+func nodeSliceSpan[T Node](nodes []T) Span {
+	spans := make([]Span, 0, len(nodes))
+	for _, n := range nodes {
+		if span := nodeSpan(n); span.IsValid() {
+			spans = append(spans, span)
+		}
+	}
+	return unionSpans(spans...)
+}
+
 // An Ident node represents an identifier.
 type Ident struct {
 	Name     string
@@ -20,6 +37,9 @@ type Ident struct {
 }
 
 func (id *Ident) Span() Span {
+	if id == nil {
+		return nullSpan()
+	}
 	return id.NameSpan
 }
 
@@ -29,6 +49,13 @@ func (id *Ident) expression() {}
 type TabularExpr struct {
 	Source    TabularDataSource
 	Operators []TabularOperator
+}
+
+func (x *TabularExpr) Span() Span {
+	if x == nil {
+		return nullSpan()
+	}
+	return unionSpans(x.Source.Span(), nodeSliceSpan(x.Operators))
 }
 
 // TabularDataSource is the interface implemented by all AST node types
@@ -48,6 +75,9 @@ type TableRef struct {
 func (ref *TableRef) tabularDataSource() {}
 
 func (ref *TableRef) Span() Span {
+	if ref == nil {
+		return nullSpan()
+	}
 	return ref.Table.Span()
 }
 
@@ -68,7 +98,10 @@ type CountOperator struct {
 func (op *CountOperator) tabularOperator() {}
 
 func (op *CountOperator) Span() Span {
-	return newSpan(op.Pipe.Start, op.Keyword.End)
+	if op == nil {
+		return nullSpan()
+	}
+	return unionSpans(op.Pipe, op.Keyword)
 }
 
 // WhereOperator represents a `| where` operator in a [TabularExpr].
@@ -82,7 +115,10 @@ type WhereOperator struct {
 func (op *WhereOperator) tabularOperator() {}
 
 func (op *WhereOperator) Span() Span {
-	return newSpan(op.Pipe.Start, op.Predicate.Span().End)
+	if op == nil {
+		return nullSpan()
+	}
+	return unionSpans(op.Pipe, op.Keyword, nodeSpan(op.Predicate))
 }
 
 // SortOperator represents a `| sort by` operator in a [TabularExpr].
@@ -96,11 +132,10 @@ type SortOperator struct {
 func (op *SortOperator) tabularOperator() {}
 
 func (op *SortOperator) Span() Span {
-	if len(op.Terms) == 0 {
-		// Not technically valid, but want to avoid a panic.
-		return newSpan(op.Pipe.Start, op.Keyword.End)
+	if op == nil {
+		return nullSpan()
 	}
-	return newSpan(op.Pipe.Start, op.Terms[len(op.Terms)-1].Span().End)
+	return unionSpans(op.Pipe, op.Keyword, nodeSliceSpan(op.Terms))
 }
 
 // SortTerm is a single sort constraint in the [SortOperator].
@@ -113,13 +148,10 @@ type SortTerm struct {
 }
 
 func (term *SortTerm) Span() Span {
-	span := term.X.Span()
-	if term.NullsSpan.IsValid() {
-		span.End = term.NullsSpan.End
-	} else if term.AscDescSpan.IsValid() {
-		span.End = term.AscDescSpan.End
+	if term == nil {
+		return nullSpan()
 	}
-	return span
+	return unionSpans(nodeSpan(term.X), term.AscDescSpan, term.NullsSpan)
 }
 
 // TakeOperator represents a `| take` operator in a [TabularExpr].
@@ -133,7 +165,10 @@ type TakeOperator struct {
 func (op *TakeOperator) tabularOperator() {}
 
 func (op *TakeOperator) Span() Span {
-	return newSpan(op.Pipe.Start, op.RowCount.Span().End)
+	if op == nil {
+		return nullSpan()
+	}
+	return unionSpans(op.Pipe, op.Keyword, nodeSpan(op.RowCount))
 }
 
 // TopOperator represents a `| top` operator in a [TabularExpr].
@@ -149,7 +184,10 @@ type TopOperator struct {
 func (op *TopOperator) tabularOperator() {}
 
 func (op *TopOperator) Span() Span {
-	return newSpan(op.Pipe.Start, op.Col.Span().End)
+	if op == nil {
+		return nullSpan()
+	}
+	return unionSpans(op.Pipe, op.Keyword, nodeSpan(op.RowCount), op.By, nodeSpan(op.Col))
 }
 
 // ProjectOperator represents a `| project` operator in a [TabularExpr].
@@ -163,11 +201,10 @@ type ProjectOperator struct {
 func (op *ProjectOperator) tabularOperator() {}
 
 func (op *ProjectOperator) Span() Span {
-	if len(op.Cols) == 0 {
-		// Not technically valid, but want to avoid a panic.
-		return newSpan(op.Pipe.Start, op.Keyword.End)
+	if op == nil {
+		return nullSpan()
 	}
-	return newSpan(op.Pipe.Start, op.Cols[len(op.Cols)-1].Span().End)
+	return unionSpans(op.Pipe, op.Keyword, nodeSliceSpan(op.Cols))
 }
 
 // A ProjectColumn is a single column term in a [ProjectOperator].
@@ -181,10 +218,10 @@ type ProjectColumn struct {
 }
 
 func (op *ProjectColumn) Span() Span {
-	if op.X == nil {
-		return op.Name.NameSpan
+	if op == nil {
+		return nullSpan()
 	}
-	return newSpan(op.Name.NameSpan.Start, op.X.Span().End)
+	return unionSpans(op.Name.Span(), op.Assign, nodeSpan(op.X))
 }
 
 // SummarizeOperator represents a `| summarize` operator in a [TabularExpr].
@@ -200,15 +237,16 @@ type SummarizeOperator struct {
 func (op *SummarizeOperator) tabularOperator() {}
 
 func (op *SummarizeOperator) Span() Span {
-	switch {
-	case len(op.GroupBy) > 0:
-		return newSpan(op.Pipe.Start, op.GroupBy[len(op.GroupBy)-1].Span().End)
-	case len(op.Cols) > 0:
-		return newSpan(op.Pipe.Start, op.Cols[len(op.Cols)-1].Span().End)
-	default:
-		// Not technically valid, but want to avoid a panic.
-		return newSpan(op.Pipe.Start, op.Keyword.End)
+	if op == nil {
+		return nullSpan()
 	}
+	return unionSpans(
+		op.Pipe,
+		op.Keyword,
+		nodeSliceSpan(op.Cols),
+		op.By,
+		nodeSliceSpan(op.GroupBy),
+	)
 }
 
 // A SummarizeColumn is a single column term in a [SummarizeOperator].
@@ -221,10 +259,10 @@ type SummarizeColumn struct {
 }
 
 func (op *SummarizeColumn) Span() Span {
-	if op.Name == nil {
-		return op.X.Span()
+	if op == nil {
+		return nullSpan()
 	}
-	return newSpan(op.Name.NameSpan.Start, op.X.Span().End)
+	return unionSpans(op.Name.Span(), op.Assign, nodeSpan(op.X))
 }
 
 // Expr is the interface implemented by all expression AST node types.
@@ -242,7 +280,10 @@ type BinaryExpr struct {
 }
 
 func (expr *BinaryExpr) Span() Span {
-	return Span{Start: expr.X.Span().Start, End: expr.Y.Span().End}
+	if expr == nil {
+		return nullSpan()
+	}
+	return unionSpans(nodeSpan(expr.X), expr.OpSpan, nodeSpan(expr.Y))
 }
 
 func (expr *BinaryExpr) expression() {}
@@ -255,7 +296,10 @@ type UnaryExpr struct {
 }
 
 func (expr *UnaryExpr) Span() Span {
-	return Span{Start: expr.OpSpan.Start, End: expr.X.Span().End}
+	if expr == nil {
+		return nullSpan()
+	}
+	return unionSpans(expr.OpSpan, nodeSpan(expr.X))
 }
 
 func (expr *UnaryExpr) expression() {}
@@ -270,16 +314,16 @@ type InExpr struct {
 }
 
 func (expr *InExpr) Span() Span {
-	switch {
-	case expr.Rparen.IsValid():
-		return newSpan(expr.X.Span().Start, expr.Rparen.End)
-	case len(expr.Vals) > 0:
-		return newSpan(expr.X.Span().Start, expr.Vals[len(expr.Vals)-1].Span().End)
-	case expr.Lparen.IsValid():
-		return newSpan(expr.X.Span().Start, expr.Lparen.End)
-	default:
-		return newSpan(expr.X.Span().Start, expr.In.End)
+	if expr == nil {
+		return nullSpan()
 	}
+	return unionSpans(
+		nodeSpan(expr.X),
+		expr.In,
+		expr.Lparen,
+		nodeSliceSpan(expr.Vals),
+		expr.Rparen,
+	)
 }
 
 func (expr *InExpr) expression() {}
@@ -292,7 +336,10 @@ type ParenExpr struct {
 }
 
 func (expr *ParenExpr) Span() Span {
-	return Span{Start: expr.Lparen.Start, End: expr.Rparen.End}
+	if expr == nil {
+		return nullSpan()
+	}
+	return unionSpans(expr.Lparen, nodeSpan(expr.X), expr.Rparen)
 }
 
 func (expr *ParenExpr) expression() {}
@@ -305,6 +352,9 @@ type BasicLit struct {
 }
 
 func (lit *BasicLit) Span() Span {
+	if lit == nil {
+		return nullSpan()
+	}
 	return lit.ValueSpan
 }
 
@@ -358,7 +408,10 @@ type CallExpr struct {
 }
 
 func (call *CallExpr) Span() Span {
-	return Span{Start: call.Func.NameSpan.Start, End: call.Rparen.End}
+	if call == nil {
+		return nullSpan()
+	}
+	return unionSpans(call.Func.Span(), call.Lparen, nodeSliceSpan(call.Args), call.Rparen)
 }
 
 func (call *CallExpr) expression() {}

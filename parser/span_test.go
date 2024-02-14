@@ -65,3 +65,41 @@ func TestSpan(t *testing.T) {
 		}
 	})
 }
+
+func TestUnionSpans(t *testing.T) {
+	tests := []struct {
+		spans []Span
+		want  Span
+	}{
+		{
+			spans: []Span{},
+			want:  nullSpan(),
+		},
+		{
+			spans: []Span{nullSpan(), nullSpan()},
+			want:  nullSpan(),
+		},
+		{
+			spans: []Span{newSpan(1, 5)},
+			want:  newSpan(1, 5),
+		},
+		{
+			spans: []Span{nullSpan(), newSpan(1, 5), nullSpan()},
+			want:  newSpan(1, 5),
+		},
+		{
+			spans: []Span{nullSpan(), newSpan(4, 5), newSpan(1, 2), nullSpan()},
+			want:  newSpan(1, 5),
+		},
+		{
+			spans: []Span{nullSpan(), newSpan(4, 5), newSpan(1, 1), nullSpan()},
+			want:  newSpan(1, 5),
+		},
+	}
+	for _, test := range tests {
+		got := unionSpans(test.spans...)
+		if got != test.want {
+			t.Errorf("unionSpans(%v...) = %v; want %v", test.spans, got, test.want)
+		}
+	}
+}

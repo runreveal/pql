@@ -44,6 +44,21 @@ func (span Span) String() string {
 	return fmt.Sprintf("[%d,%d)", span.Start, span.End)
 }
 
+func unionSpans(spans ...Span) Span {
+	u := nullSpan()
+	for _, span := range spans {
+		if !span.IsValid() {
+			continue
+		}
+		if u.IsValid() {
+			u = newSpan(min(u.Start, span.Start), max(u.End, span.End))
+		} else {
+			u = span
+		}
+	}
+	return u
+}
+
 func spanString(s string, span Span) string {
 	if !span.IsValid() {
 		return ""
