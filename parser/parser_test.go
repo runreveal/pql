@@ -166,6 +166,33 @@ var parserTests = []struct {
 		},
 	},
 	{
+		name:  "ZeroArgFunctionWithTrailingComma",
+		query: `StormEvents | where rand(,)`,
+		err:   true,
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "StormEvents",
+					NameSpan: newSpan(0, 11),
+				},
+			},
+			Operators: []TabularOperator{
+				&WhereOperator{
+					Pipe:    newSpan(12, 13),
+					Keyword: newSpan(14, 19),
+					Predicate: &CallExpr{
+						Func: &Ident{
+							Name:     "rand",
+							NameSpan: newSpan(20, 24),
+						},
+						Lparen: newSpan(24, 25),
+						Rparen: newSpan(26, 27),
+					},
+				},
+			},
+		},
+	},
+	{
 		name:  "OneArgFunction",
 		query: "StormEvents | where not(false)",
 		want: &TabularExpr{
@@ -1262,6 +1289,190 @@ var parserTests = []struct {
 						},
 						AscDescSpan: nullSpan(),
 						NullsSpan:   nullSpan(),
+					},
+				},
+			},
+		},
+	},
+	{
+		name:  "Join",
+		query: "X | join (Y) on Key",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&JoinOperator{
+					Pipe:    newSpan(2, 3),
+					Keyword: newSpan(4, 8),
+
+					Kind:       nullSpan(),
+					KindAssign: nullSpan(),
+
+					Lparen: newSpan(9, 10),
+					Right: &TabularExpr{
+						Source: &TableRef{
+							Table: &Ident{
+								Name:     "Y",
+								NameSpan: newSpan(10, 11),
+							},
+						},
+					},
+					Rparen: newSpan(11, 12),
+					On:     newSpan(13, 15),
+					Conditions: []Expr{
+						&Ident{
+							Name:     "Key",
+							NameSpan: newSpan(16, 19),
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		name:  "JoinLeft",
+		query: "X | join kind=leftouter (Y) on Key",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&JoinOperator{
+					Pipe:    newSpan(2, 3),
+					Keyword: newSpan(4, 8),
+
+					Kind:       newSpan(9, 13),
+					KindAssign: newSpan(13, 14),
+					Flavor: &Ident{
+						Name:     "leftouter",
+						NameSpan: newSpan(14, 23),
+					},
+
+					Lparen: newSpan(24, 25),
+					Right: &TabularExpr{
+						Source: &TableRef{
+							Table: &Ident{
+								Name:     "Y",
+								NameSpan: newSpan(25, 26),
+							},
+						},
+					},
+					Rparen: newSpan(26, 27),
+					On:     newSpan(28, 30),
+					Conditions: []Expr{
+						&Ident{
+							Name:     "Key",
+							NameSpan: newSpan(31, 34),
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		name:  "JoinBadFlavor",
+		query: "X | join kind=salt (Y) on Key",
+		err:   true,
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&JoinOperator{
+					Pipe:    newSpan(2, 3),
+					Keyword: newSpan(4, 8),
+
+					Kind:       newSpan(9, 13),
+					KindAssign: newSpan(13, 14),
+					Flavor: &Ident{
+						Name:     "salt",
+						NameSpan: newSpan(14, 18),
+					},
+
+					Lparen: newSpan(19, 20),
+					Right: &TabularExpr{
+						Source: &TableRef{
+							Table: &Ident{
+								Name:     "Y",
+								NameSpan: newSpan(20, 21),
+							},
+						},
+					},
+					Rparen: newSpan(21, 22),
+					On:     newSpan(23, 25),
+					Conditions: []Expr{
+						&Ident{
+							Name:     "Key",
+							NameSpan: newSpan(26, 29),
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		name:  "JoinComplexRight",
+		query: "X | join (Y | where z == 5) on Key",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&JoinOperator{
+					Pipe:    newSpan(2, 3),
+					Keyword: newSpan(4, 8),
+
+					Kind:       nullSpan(),
+					KindAssign: nullSpan(),
+
+					Lparen: newSpan(9, 10),
+					Right: &TabularExpr{
+						Source: &TableRef{
+							Table: &Ident{
+								Name:     "Y",
+								NameSpan: newSpan(10, 11),
+							},
+						},
+						Operators: []TabularOperator{
+							&WhereOperator{
+								Pipe:    newSpan(12, 13),
+								Keyword: newSpan(14, 19),
+								Predicate: &BinaryExpr{
+									X: &Ident{
+										Name:     "z",
+										NameSpan: newSpan(20, 21),
+									},
+									Op:     TokenEq,
+									OpSpan: newSpan(22, 24),
+									Y: &BasicLit{
+										Kind:      TokenNumber,
+										Value:     "5",
+										ValueSpan: newSpan(25, 26),
+									},
+								},
+							},
+						},
+					},
+					Rparen: newSpan(26, 27),
+					On:     newSpan(28, 30),
+					Conditions: []Expr{
+						&Ident{
+							Name:     "Key",
+							NameSpan: newSpan(31, 34),
+						},
 					},
 				},
 			},

@@ -265,6 +265,46 @@ func (op *SummarizeColumn) Span() Span {
 	return unionSpans(op.Name.Span(), op.Assign, nodeSpan(op.X))
 }
 
+// JoinOperator represents a `| join` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type JoinOperator struct {
+	Pipe    Span
+	Keyword Span
+
+	Kind       Span
+	KindAssign Span
+	// Flavor is the type of join to use.
+	// If absent, innerunique is implied.
+	Flavor *Ident
+
+	Lparen Span
+	Right  *TabularExpr
+	Rparen Span
+
+	On Span
+	// Conditions is one or more AND-ed conditions.
+	// If the expression is a single identifier x,
+	// then it is treated as equivalent to "$left.x == $right.x".
+	Conditions []Expr
+}
+
+func (op *JoinOperator) tabularOperator() {}
+
+func (op *JoinOperator) Span() Span {
+	return unionSpans(
+		op.Pipe,
+		op.Keyword,
+		op.Kind,
+		op.KindAssign,
+		op.Flavor.Span(),
+		op.Lparen,
+		op.Right.Span(),
+		op.Rparen,
+		op.On,
+		nodeSliceSpan(op.Conditions),
+	)
+}
+
 // Expr is the interface implemented by all expression AST node types.
 type Expr interface {
 	Node

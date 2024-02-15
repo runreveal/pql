@@ -5,12 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
+
+	"golang.org/x/exp/maps"
 )
 
 type parser struct {
 	source string
 	tokens []Token
 	pos    int
+
+	splitKind TokenKind
 }
 
 // Parse converts a Pipeline Query Language tabular expression
@@ -58,103 +63,93 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 		Source: &TableRef{Table: tableName},
 	}
 
-	var returnedError error
+	var finalError error
 	for i := 0; ; i++ {
-		pipeToken, ok := p.next()
-		if !ok {
-			break
-		}
+		pipeToken, _ := p.next()
 		if pipeToken.Kind != TokenPipe {
 			p.prev()
-			if i == 0 {
-				returnedError = joinErrors(returnedError, &parseError{
-					source: p.source,
-					span:   pipeToken.Span,
-					err:    fmt.Errorf("expected '|' after table data source, got %s", formatToken(p.source, pipeToken)),
-				})
-			} else {
-				returnedError = joinErrors(returnedError, &parseError{
-					source: p.source,
-					span:   pipeToken.Span,
-					err:    fmt.Errorf("expected '|', got %s", formatToken(p.source, pipeToken)),
-				})
-			}
-			p.skipTo(TokenPipe)
-			continue
+			return expr, finalError
 		}
 
-		operatorName, ok := p.next()
+		opParser := p.split(TokenPipe)
+
+		operatorName, ok := opParser.next()
 		if !ok {
-			returnedError = joinErrors(returnedError, &parseError{
-				source: p.source,
+			finalError = joinErrors(finalError, &parseError{
+				source: opParser.source,
 				span:   pipeToken.Span,
 				err:    errors.New("missing operator name after pipe"),
 			})
-			p.skipTo(TokenPipe)
 			continue
 		}
 		if operatorName.Kind != TokenIdentifier {
-			returnedError = joinErrors(returnedError, &parseError{
-				source: p.source,
+			finalError = joinErrors(finalError, &parseError{
+				source: opParser.source,
 				span:   operatorName.Span,
-				err:    fmt.Errorf("expected operator name, got %s", formatToken(p.source, operatorName)),
+				err:    fmt.Errorf("expected operator name, got %s", formatToken(opParser.source, operatorName)),
 			})
-			p.skipTo(TokenPipe)
 			continue
 		}
 		switch operatorName.Value {
 		case "count":
-			op, err := p.countOperator(pipeToken, operatorName)
+			op, err := opParser.countOperator(pipeToken, operatorName)
 			if op != nil {
 				expr.Operators = append(expr.Operators, op)
 			}
-			returnedError = joinErrors(returnedError, err)
+			finalError = joinErrors(finalError, err)
 		case "where", "filter":
-			op, err := p.whereOperator(pipeToken, operatorName)
+			op, err := opParser.whereOperator(pipeToken, operatorName)
 			if op != nil {
 				expr.Operators = append(expr.Operators, op)
 			}
-			returnedError = joinErrors(returnedError, err)
+			finalError = joinErrors(finalError, err)
 		case "sort", "order":
-			op, err := p.sortOperator(pipeToken, operatorName)
+			op, err := opParser.sortOperator(pipeToken, operatorName)
 			if op != nil {
 				expr.Operators = append(expr.Operators, op)
 			}
-			returnedError = joinErrors(returnedError, err)
+			finalError = joinErrors(finalError, err)
 		case "take", "limit":
-			op, err := p.takeOperator(pipeToken, operatorName)
+			op, err := opParser.takeOperator(pipeToken, operatorName)
 			if op != nil {
 				expr.Operators = append(expr.Operators, op)
 			}
-			returnedError = joinErrors(returnedError, err)
+			finalError = joinErrors(finalError, err)
 		case "top":
-			op, err := p.topOperator(pipeToken, operatorName)
+			op, err := opParser.topOperator(pipeToken, operatorName)
 			if op != nil {
 				expr.Operators = append(expr.Operators, op)
 			}
-			returnedError = joinErrors(returnedError, err)
+			finalError = joinErrors(finalError, err)
 		case "project":
-			op, err := p.projectOperator(pipeToken, operatorName)
+			op, err := opParser.projectOperator(pipeToken, operatorName)
 			if op != nil {
 				expr.Operators = append(expr.Operators, op)
 			}
-			returnedError = joinErrors(returnedError, err)
+			finalError = joinErrors(finalError, err)
 		case "summarize":
-			op, err := p.summarizeOperator(pipeToken, operatorName)
+			op, err := opParser.summarizeOperator(pipeToken, operatorName)
 			if op != nil {
 				expr.Operators = append(expr.Operators, op)
 			}
-			returnedError = joinErrors(returnedError, err)
+			finalError = joinErrors(finalError, err)
+		case "join":
+			op, err := opParser.joinOperator(pipeToken, operatorName)
+			if op != nil {
+				expr.Operators = append(expr.Operators, op)
+			}
+			finalError = joinErrors(finalError, err)
 		default:
-			returnedError = joinErrors(returnedError, &parseError{
-				source: p.source,
+			finalError = joinErrors(finalError, &parseError{
+				source: opParser.source,
 				span:   operatorName.Span,
 				err:    fmt.Errorf("unknown operator name %q", operatorName.Value),
 			})
-			p.skipTo(TokenPipe)
+			continue
 		}
+
+		finalError = joinErrors(finalError, opParser.endSplit())
 	}
-	return expr, returnedError
 }
 
 func (p *parser) countOperator(pipe, keyword Token) (*CountOperator, error) {
@@ -500,6 +495,110 @@ func (p *parser) summarizeColumn() (*SummarizeColumn, error) {
 	return col, err
 }
 
+var joinTypes = map[string]struct{}{
+	"innerunique": {},
+	"inner":       {},
+	"leftouter":   {},
+}
+
+func (p *parser) joinOperator(pipe, keyword Token) (*JoinOperator, error) {
+	op := &JoinOperator{
+		Pipe:       pipe.Span,
+		Keyword:    keyword.Span,
+		Kind:       nullSpan(),
+		KindAssign: nullSpan(),
+		Lparen:     nullSpan(),
+		Rparen:     nullSpan(),
+		On:         nullSpan(),
+	}
+
+	tok, ok := p.next()
+	if !ok {
+		return op, &parseError{
+			source: p.source,
+			span:   indexSpan(len(p.source)),
+			err:    fmt.Errorf("expected 'kind' or '(', got EOF"),
+		}
+	}
+
+	// Optional "kind = JoinFlavor" clause.
+	var finalError error
+	if tok.Kind == TokenIdentifier && tok.Value == "kind" {
+		op.Kind = tok.Span
+		tok, _ = p.next()
+		if tok.Kind != TokenAssign {
+			return op, joinErrors(finalError, &parseError{
+				source: p.source,
+				span:   tok.Span,
+				err:    fmt.Errorf("expected '=', got %s", formatToken(p.source, tok)),
+			})
+		}
+		op.KindAssign = tok.Span
+		tok, _ = p.next()
+		if tok.Kind != TokenIdentifier {
+			return op, joinErrors(finalError, &parseError{
+				source: p.source,
+				span:   tok.Span,
+				err:    fmt.Errorf("expected join flavor, got %s", formatToken(p.source, tok)),
+			})
+		}
+		op.Flavor = &Ident{
+			Name:     tok.Value,
+			NameSpan: tok.Span,
+		}
+		if _, ok := joinTypes[tok.Value]; !ok {
+			joinTypeList := maps.Keys(joinTypes)
+			slices.Sort(joinTypeList)
+			finalError = joinErrors(finalError, &parseError{
+				source: p.source,
+				span:   tok.Span,
+				err:    fmt.Errorf("expected join flavor (one of %s), got %s", strings.Join(joinTypeList, ", "), tok.Value),
+			})
+		}
+	} else {
+		p.prev()
+	}
+
+	// Right table:
+	tok, _ = p.next()
+	if tok.Kind != TokenLParen {
+		return op, joinErrors(finalError, &parseError{
+			source: p.source,
+			span:   tok.Span,
+			err:    fmt.Errorf("expected '(', got %s", formatToken(p.source, tok)),
+		})
+	}
+	op.Lparen = tok.Span
+	rightParser := p.split(TokenRParen)
+	var err error
+	op.Right, err = rightParser.tabularExpr()
+	finalError = joinErrors(finalError, makeErrorOpaque(err), rightParser.endSplit())
+	tok, _ = p.next()
+	if tok.Kind != TokenRParen {
+		return op, joinErrors(finalError, &parseError{
+			source: p.source,
+			span:   tok.Span,
+			err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, tok)),
+		})
+	}
+	op.Rparen = tok.Span
+
+	// Conditions:
+	tok, _ = p.next()
+	if tok.Kind != TokenIdentifier || tok.Value != "on" {
+		return op, joinErrors(finalError, &parseError{
+			source: p.source,
+			span:   tok.Span,
+			err:    fmt.Errorf("expected 'on', got %s", formatToken(p.source, tok)),
+		})
+	}
+	op.On = tok.Span
+	op.Conditions, err = p.exprList()
+	finalError = joinErrors(finalError, makeErrorOpaque(err))
+
+	return op, finalError
+}
+
 // exprList parses one or more comma-separated expressions.
 func (p *parser) exprList() ([]Expr, error) {
 	first, err := p.expr()
@@ -572,11 +671,9 @@ func (p *parser) exprBinaryTrail(x Expr, minPrecedence int) (Expr, error) {
 				})
 				return x, finalError
 			}
-			vals, err := p.exprList()
-			if err != nil {
-				finalError = joinErrors(finalError, makeErrorOpaque(err))
-				p.skipTo(TokenRParen)
-			}
+			valParser := p.split(TokenRParen)
+			vals, err := valParser.exprList()
+			finalError = joinErrors(finalError, makeErrorOpaque(err), valParser.endSplit())
 			rparen, _ := p.next()
 			if rparen.Kind != TokenRParen {
 				x = &InExpr{
@@ -706,30 +803,27 @@ func (p *parser) primaryExpr() (Expr, error) {
 		}
 
 		if nextTok.Kind == TokenLParen {
-			args, err := p.exprList()
+			argParser := p.split(TokenRParen)
+			args, err := argParser.exprList()
 			if isNotFound(err) {
 				err = nil
+			} else if err == nil {
+				if tok, _ := argParser.next(); tok.Kind != TokenComma {
+					argParser.prev()
+				}
 			}
-			finalTok, _ := p.next()
-			if finalTok.Kind == TokenComma {
-				finalTok, _ = p.next()
-			}
+			err = joinErrors(err, argParser.endSplit())
+
 			rparen := nullSpan()
-			if finalTok.Kind == TokenRParen {
+			if finalTok, _ := p.next(); finalTok.Kind == TokenRParen {
 				rparen = finalTok.Span
 			} else {
+				p.prev()
 				err = joinErrors(err, &parseError{
 					source: p.source,
 					span:   finalTok.Span,
 					err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, finalTok)),
 				})
-				p.skipTo(TokenRParen)
-				finalTok, _ = p.next()
-				if finalTok.Kind == TokenRParen {
-					rparen = finalTok.Span
-				} else {
-					p.prev()
-				}
 			}
 			return &CallExpr{
 				Func: &Ident{
@@ -751,36 +845,23 @@ func (p *parser) primaryExpr() (Expr, error) {
 		p.prev()
 		return p.ident()
 	case TokenLParen:
-		x, err := p.expr()
+		exprParser := p.split(TokenRParen)
+		x, err := exprParser.expr()
 		err = makeErrorOpaque(err) // already consumed a parenthesis
-		endTok, ok := p.next()
-		if !ok {
-			err2 := &parseError{
-				source: p.source,
-				span:   indexSpan(len(p.source)),
-				err:    errors.New("expected ')', got EOF"),
-			}
-			return &ParenExpr{
-				Lparen: tok.Span,
-				X:      x,
-				Rparen: nullSpan(),
-			}, joinErrors(err, err2)
-		}
+		err = joinErrors(err, exprParser.endSplit())
+
+		endTok, _ := p.next()
 		if endTok.Kind != TokenRParen {
 			err = joinErrors(err, &parseError{
 				source: p.source,
 				span:   endTok.Span,
 				err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, endTok)),
 			})
-			p.skipTo(TokenRParen)
-			endTok, _ = p.next()
-			if endTok.Kind != TokenRParen {
-				return &ParenExpr{
-					Lparen: tok.Span,
-					X:      x,
-					Rparen: nullSpan(),
-				}, err
-			}
+			return &ParenExpr{
+				Lparen: tok.Span,
+				X:      x,
+				Rparen: nullSpan(),
+			}, err
 		}
 		return &ParenExpr{
 			Lparen: tok.Span,
@@ -814,22 +895,29 @@ func (p *parser) ident() (*Ident, error) {
 	}, nil
 }
 
-// skipTo advances the parser to right before the next token of the given kind.
+// split advances the parser to right before the next token of the given kind,
+// and returns a new parser that reads the tokens that were skipped over.
 // It ignores tokens that are in parenthetical groups after the initial parse position.
 // If no such token is found, skipTo advances to EOF.
-func (p *parser) skipTo(search TokenKind) {
+func (p *parser) split(search TokenKind) *parser {
 	parenLevel := 0
+	start := p.pos
+loop:
 	for {
 		tok, ok := p.next()
 		if !ok {
-			return
+			return &parser{
+				source:    p.source,
+				tokens:    p.tokens[start:],
+				splitKind: search,
+			}
 		}
 
 		switch tok.Kind {
 		case TokenLParen:
 			if search == TokenLParen {
 				p.prev()
-				return
+				break loop
 			}
 			parenLevel++
 		case TokenRParen:
@@ -837,15 +925,46 @@ func (p *parser) skipTo(search TokenKind) {
 				parenLevel--
 			} else if search == TokenRParen {
 				p.prev()
-				return
+				break loop
 			}
 		case search:
 			if parenLevel <= 0 {
 				p.prev()
-				return
+				break loop
 			}
 		}
 	}
+
+	return &parser{
+		source:    p.source,
+		tokens:    p.tokens[start:p.pos],
+		splitKind: search,
+	}
+}
+
+func (p *parser) endSplit() error {
+	if p.splitKind == 0 {
+		// This is a bug, but treating as an error instead of panicing.
+		return errors.New("internal error: endSplit called on non-split parser")
+	}
+	if p.pos < len(p.tokens) {
+		var s string
+		switch p.splitKind {
+		case TokenPipe:
+			s = "'|'"
+		case TokenRParen:
+			s = "')'"
+		default:
+			s = p.splitKind.String()
+		}
+		tok := p.tokens[p.pos]
+		return &parseError{
+			source: p.source,
+			span:   tok.Span,
+			err:    fmt.Errorf("expected %s, got %s", s, formatToken(p.source, tok)),
+		}
+	}
+	return nil
 }
 
 func (p *parser) next() (Token, bool) {
