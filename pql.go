@@ -208,7 +208,7 @@ func chainSubquery(dst []*subquery, dstStart int, src parser.TabularDataSource) 
 }
 
 func subqueryName(i int) string {
-	return fmt.Sprintf("subquery%d", i)
+	return fmt.Sprintf("__subquery%d", i)
 }
 
 // canAttachSort reports whether the given operator's subquery can have a sort clause attached.
