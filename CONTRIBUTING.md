@@ -26,12 +26,14 @@ so parsing rules are written as plain Go code that consumes tokens.
     that implements `TabularOperator`.
     Look to other `TabularOperator` types in ast.go
     for inspiration.
-2.  Add another case into the `switch` inside the `*parser.tabularExpr` method.
-3.  Add a parsing method to `*parser`
+2.  Add another case into the `switch` inside the `Walk` function
+    to support your new operator.
+3.  Add another case into the `switch` inside the `*parser.tabularExpr` method.
+4.  Add a parsing method to `*parser`
     that converts tokens into your new `TabularOperator` type.
     You can look at `*parser.whereOperator` and `*parser.takeOperator`
     as basic examples.
-4.  Add a [test](parser/parser_test.go)
+5.  Add a [test](parser/parser_test.go)
     to ensure that your tabular operator is parsed as you expect.
 
 Now for compilation:
