@@ -1,3 +1,4 @@
+FileName,Size
 parser_test.go,Large
 parser.go,Smol
 lex.go,Smol

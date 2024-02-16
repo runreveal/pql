@@ -361,7 +361,7 @@ func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 			return err
 		}
 	case *parser.CountOperator:
-		sb.WriteString("SELECT COUNT(*) FROM ")
+		sb.WriteString(`SELECT COUNT(*) AS "count()" FROM `)
 		sb.WriteString(sub.sourceSQL)
 	default:
 		fmt.Fprintf(sb, "SELECT NULL /* unsupported operator %T */", op)

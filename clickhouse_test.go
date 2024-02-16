@@ -54,7 +54,7 @@ func TestClickhouseLocal(t *testing.T) {
 			}
 
 			var args []string
-			args = append(args, "local", "--format", "CSV")
+			args = append(args, "local", "--format", "CSVWithNames")
 			sb := new(strings.Builder)
 			for _, tab := range tables {
 				sb.Reset()

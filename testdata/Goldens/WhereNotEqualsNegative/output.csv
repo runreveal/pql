@@ -1,3 +1,4 @@
+Kind,TokenConstant
 1,TokenIdentifier
 2,TokenQuotedIdentifier
 3,TokenNumber
