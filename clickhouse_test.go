@@ -59,7 +59,7 @@ func TestClickhouseLocal(t *testing.T) {
 			for _, tab := range tables {
 				sb.Reset()
 				quoteSQLString(sb, tab.filename)
-				args = append(args, "--query", fmt.Sprintf("CREATE TABLE \"%s\" AS file(%s);", tab.name, sb))
+				args = append(args, "--query", fmt.Sprintf("CREATE TABLE \"%s\" AS file(%s, 'CSVWithNames');", tab.name, sb))
 			}
 			args = append(args, "--query", query)
 
