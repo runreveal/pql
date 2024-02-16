@@ -1,2 +1,2 @@
 Tokens
-| where Value != -1
+| where Kind != -1

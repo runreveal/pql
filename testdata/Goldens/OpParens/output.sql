@@ -1,1 +1,1 @@
-SELECT * FROM "Tokens" WHERE ("Value" - 3) > 0 ORDER BY "Value" ASC NULLS FIRST;
+SELECT * FROM "Tokens" WHERE ("Kind" - 3) > 0 ORDER BY "Kind" ASC NULLS FIRST;

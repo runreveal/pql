@@ -1,2 +1,2 @@
 Tokens
-| where isnull(Value)
+| where isnull(Kind)

@@ -1,1 +1,1 @@
-SELECT * FROM "Tokens" WHERE coalesce(abs("Value") = 1, FALSE);
+SELECT * FROM "Tokens" WHERE coalesce(abs("Kind") = 1, FALSE);

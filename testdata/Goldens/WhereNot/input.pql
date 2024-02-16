@@ -1,2 +1,2 @@
 Tokens
-| where not(Value > 0)
+| where not(Kind > 0)

@@ -1,1 +1,1 @@
-SELECT * FROM "Tokens" WHERE NOT ("Value" > 0);
+SELECT * FROM "Tokens" WHERE NOT ("Kind" > 0);

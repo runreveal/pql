@@ -1,0 +1,4 @@
+StormEvents
+| project State
+| join kind=innerunique (StateCapitals | project State = upper(State), StateCapital) on State
+| sort by State asc

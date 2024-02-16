@@ -1,2 +1,2 @@
 Tokens
-| where isnotnull(Value)
+| where isnotnull(Kind)

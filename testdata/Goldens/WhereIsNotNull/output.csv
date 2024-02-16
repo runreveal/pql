@@ -4,4 +4,5 @@
 4,TokenString
 5,TokenAnd
 6,TokenOr
+7,TokenPipe
 -1,TokenError

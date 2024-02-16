@@ -1,0 +1,4 @@
+LexResults
+| join (Tokens) on Kind, Value != "bar"
+| sort by SpanStart asc
+| project TokenConstant, Value

@@ -1,0 +1,4 @@
+Kind,SpanStart,SpanEnd,Value
+1,0,3,foo
+7,4,5,""
+1,6,9,bar
