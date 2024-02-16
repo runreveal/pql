@@ -483,7 +483,7 @@ func (p *parser) summarizeColumn() (*SummarizeColumn, error) {
 			p.pos = restorePos
 		}
 	} else if !isNotFound(err) {
-		col.X = col.Name
+		col.X = col.Name.AsQualified()
 		col.Name = nil
 		return col, makeErrorOpaque(err)
 	}
@@ -793,57 +793,58 @@ func (p *parser) primaryExpr() (Expr, error) {
 			Value:     tok.Value,
 		}, nil
 	case TokenIdentifier:
-		// Look ahead for opening parenthesis for a function call.
-		nextTok, ok := p.next()
-		if !ok {
-			return &Ident{
-				NameSpan: tok.Span,
-				Name:     tok.Value,
-			}, nil
-		}
-
-		if nextTok.Kind == TokenLParen {
-			argParser := p.split(TokenRParen)
-			args, err := argParser.exprList()
-			if isNotFound(err) {
-				err = nil
-			} else if err == nil {
-				if tok, _ := argParser.next(); tok.Kind != TokenComma {
-					argParser.prev()
-				}
-			}
-			err = joinErrors(err, argParser.endSplit())
-
-			rparen := nullSpan()
-			if finalTok, _ := p.next(); finalTok.Kind == TokenRParen {
-				rparen = finalTok.Span
-			} else {
-				p.prev()
-				err = joinErrors(err, &parseError{
-					source: p.source,
-					span:   finalTok.Span,
-					err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, finalTok)),
-				})
-			}
-			return &CallExpr{
-				Func: &Ident{
-					Name:     tok.Value,
-					NameSpan: tok.Span,
-				},
-				Lparen: nextTok.Span,
-				Args:   args,
-				Rparen: rparen,
-			}, err
-		}
-
+		// Look ahead for a dot-separated identifier.
 		p.prev()
-		return &Ident{
-			NameSpan: tok.Span,
-			Name:     tok.Value,
-		}, nil
+		id, err := p.qualifiedIdent()
+		if err != nil {
+			return id, err
+		}
+		if len(id.Parts) > 1 {
+			// Dot-separated identifiers cannot be used as a function call.
+			return id, nil
+		}
+
+		// Plain identifier may be followed by an opening parenthesis for a function call.
+		nextTok, _ := p.next()
+		if nextTok.Kind != TokenLParen {
+			p.prev()
+			return id, nil
+		}
+
+		argParser := p.split(TokenRParen)
+		args, err := argParser.exprList()
+		if isNotFound(err) {
+			err = nil
+		} else if err == nil {
+			if tok, _ := argParser.next(); tok.Kind != TokenComma {
+				argParser.prev()
+			}
+		}
+		err = joinErrors(err, argParser.endSplit())
+
+		rparen := nullSpan()
+		if finalTok, _ := p.next(); finalTok.Kind == TokenRParen {
+			rparen = finalTok.Span
+		} else {
+			p.prev()
+			err = joinErrors(err, &parseError{
+				source: p.source,
+				span:   finalTok.Span,
+				err:    fmt.Errorf("expected ')', got %s", formatToken(p.source, finalTok)),
+			})
+		}
+		return &CallExpr{
+			Func: &Ident{
+				Name:     tok.Value,
+				NameSpan: tok.Span,
+			},
+			Lparen: nextTok.Span,
+			Args:   args,
+			Rparen: rparen,
+		}, err
 	case TokenQuotedIdentifier:
 		p.prev()
-		return p.ident()
+		return p.qualifiedIdent()
 	case TokenLParen:
 		exprParser := p.split(TokenRParen)
 		x, err := exprParser.expr()
@@ -893,6 +894,28 @@ func (p *parser) ident() (*Ident, error) {
 		NameSpan: tok.Span,
 		Quoted:   tok.Kind == TokenQuotedIdentifier,
 	}, nil
+}
+
+// qualifiedIdent parses one or more dot-separated identifiers.
+func (p *parser) qualifiedIdent() (*QualifiedIdent, error) {
+	id, err := p.ident()
+	if err != nil {
+		return nil, err
+	}
+
+	qid := id.AsQualified()
+	for {
+		tok, _ := p.next()
+		if tok.Kind != TokenDot {
+			p.prev()
+			return qid, nil
+		}
+		sel, err := p.ident()
+		if err != nil {
+			return qid, makeErrorOpaque(err)
+		}
+		qid.Parts = append(qid.Parts, sel)
+	}
 }
 
 // split advances the parser to right before the next token of the given kind,

@@ -104,10 +104,10 @@ var parserTests = []struct {
 				&WhereOperator{
 					Pipe:    newSpan(12, 13),
 					Keyword: newSpan(14, 19),
-					Predicate: &Ident{
+					Predicate: (&Ident{
 						Name:     "true",
 						NameSpan: newSpan(20, 24),
-					},
+					}).AsQualified(),
 				},
 			},
 		},
@@ -213,10 +213,10 @@ var parserTests = []struct {
 						},
 						Lparen: newSpan(23, 24),
 						Args: []Expr{
-							&Ident{
+							(&Ident{
 								Name:     "false",
 								NameSpan: newSpan(24, 29),
-							},
+							}).AsQualified(),
 						},
 						Rparen: newSpan(29, 30),
 					},
@@ -358,10 +358,10 @@ var parserTests = []struct {
 				&WhereOperator{
 					Pipe:    newSpan(22, 23),
 					Keyword: newSpan(24, 29),
-					Predicate: &Ident{
+					Predicate: (&Ident{
 						Name:     "true",
 						NameSpan: newSpan(30, 34),
-					},
+					}).AsQualified(),
 				},
 			},
 		},
@@ -381,10 +381,10 @@ var parserTests = []struct {
 					Pipe:    newSpan(12, 13),
 					Keyword: newSpan(14, 19),
 					Predicate: &BinaryExpr{
-						X: &Ident{
+						X: (&Ident{
 							Name:     "DamageProperty",
 							NameSpan: newSpan(20, 34),
-						},
+						}).AsQualified(),
 						OpSpan: newSpan(35, 36),
 						Op:     TokenGT,
 						Y: &BasicLit{
@@ -414,23 +414,23 @@ var parserTests = []struct {
 					Predicate: &BinaryExpr{
 						X: &BinaryExpr{
 							X: &BinaryExpr{
-								X: &Ident{
+								X: (&Ident{
 									Name:     "x",
 									NameSpan: newSpan(12, 13),
-								},
+								}).AsQualified(),
 								OpSpan: newSpan(14, 15),
 								Op:     TokenSlash,
-								Y: &Ident{
+								Y: (&Ident{
 									Name:     "y",
 									NameSpan: newSpan(16, 17),
-								},
+								}).AsQualified(),
 							},
 							OpSpan: newSpan(18, 19),
 							Op:     TokenStar,
-							Y: &Ident{
+							Y: (&Ident{
 								Name:     "z",
 								NameSpan: newSpan(20, 21),
-							},
+							}).AsQualified(),
 						},
 						OpSpan: newSpan(22, 24),
 						Op:     TokenEq,
@@ -460,25 +460,25 @@ var parserTests = []struct {
 					Keyword: newSpan(6, 11),
 					Predicate: &BinaryExpr{
 						X: &BinaryExpr{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "x",
 								NameSpan: newSpan(12, 13),
-							},
+							}).AsQualified(),
 							OpSpan: newSpan(14, 15),
 							Op:     TokenSlash,
 							Y: &ParenExpr{
 								Lparen: newSpan(16, 17),
 								X: &BinaryExpr{
-									X: &Ident{
+									X: (&Ident{
 										Name:     "y",
 										NameSpan: newSpan(17, 18),
-									},
+									}).AsQualified(),
 									OpSpan: newSpan(19, 20),
 									Op:     TokenStar,
-									Y: &Ident{
+									Y: (&Ident{
 										Name:     "z",
 										NameSpan: newSpan(21, 22),
-									},
+									}).AsQualified(),
 								},
 								Rparen: newSpan(22, 23),
 							},
@@ -569,10 +569,10 @@ var parserTests = []struct {
 					Pipe:    newSpan(12, 13),
 					Keyword: newSpan(14, 19),
 					Predicate: &InExpr{
-						X: &Ident{
+						X: (&Ident{
 							Name:     "State",
 							NameSpan: newSpan(20, 25),
-						},
+						}).AsQualified(),
 						In:     newSpan(26, 28),
 						Lparen: newSpan(29, 30),
 						Vals: []Expr{
@@ -609,10 +609,10 @@ var parserTests = []struct {
 					Keyword: newSpan(14, 19),
 					Predicate: &BinaryExpr{
 						X: &InExpr{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "State",
 								NameSpan: newSpan(20, 25),
-							},
+							}).AsQualified(),
 							In:     newSpan(26, 28),
 							Lparen: newSpan(29, 30),
 							Vals: []Expr{
@@ -632,10 +632,10 @@ var parserTests = []struct {
 						Op:     TokenAnd,
 						OpSpan: newSpan(56, 59),
 						Y: &BinaryExpr{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "DamageProperty",
 								NameSpan: newSpan(60, 74),
-							},
+							}).AsQualified(),
 							Op:     TokenGT,
 							OpSpan: newSpan(75, 76),
 							Y: &BasicLit{
@@ -665,10 +665,10 @@ var parserTests = []struct {
 					Keyword: newSpan(14, 19),
 					Predicate: &BinaryExpr{
 						X: &BinaryExpr{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "DamageProperty",
 								NameSpan: newSpan(20, 34),
-							},
+							}).AsQualified(),
 							Op:     TokenGT,
 							OpSpan: newSpan(35, 36),
 							Y: &BasicLit{
@@ -680,10 +680,10 @@ var parserTests = []struct {
 						Op:     TokenAnd,
 						OpSpan: newSpan(43, 46),
 						Y: &InExpr{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "State",
 								NameSpan: newSpan(47, 52),
-							},
+							}).AsQualified(),
 							In:     newSpan(53, 55),
 							Lparen: newSpan(56, 57),
 							Vals: []Expr{
@@ -787,10 +787,10 @@ var parserTests = []struct {
 					Keyword: newSpan(6, 13),
 					Terms: []*SortTerm{
 						{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "bar",
 								NameSpan: newSpan(14, 17),
-							},
+							}).AsQualified(),
 							AscDescSpan: nullSpan(),
 							NullsSpan:   nullSpan(),
 						},
@@ -815,10 +815,10 @@ var parserTests = []struct {
 					Keyword: newSpan(6, 14),
 					Terms: []*SortTerm{
 						{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "bar",
 								NameSpan: newSpan(15, 18),
-							},
+							}).AsQualified(),
 							AscDescSpan: nullSpan(),
 							NullsSpan:   nullSpan(),
 						},
@@ -843,10 +843,10 @@ var parserTests = []struct {
 					Keyword: newSpan(6, 13),
 					Terms: []*SortTerm{
 						{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "bar",
 								NameSpan: newSpan(14, 17),
-							},
+							}).AsQualified(),
 							AscDescSpan: nullSpan(),
 							NullsSpan:   nullSpan(),
 						},
@@ -880,20 +880,20 @@ var parserTests = []struct {
 					Keyword: newSpan(14, 21),
 					Terms: []*SortTerm{
 						{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "State",
 								NameSpan: newSpan(22, 27),
-							},
+							}).AsQualified(),
 							Asc:         true,
 							AscDescSpan: newSpan(28, 31),
 							NullsFirst:  true,
 							NullsSpan:   nullSpan(),
 						},
 						{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "StartTime",
 								NameSpan: newSpan(33, 42),
-							},
+							}).AsQualified(),
 							Asc:         false,
 							AscDescSpan: newSpan(43, 47),
 							NullsFirst:  false,
@@ -920,10 +920,10 @@ var parserTests = []struct {
 					Keyword: newSpan(6, 13),
 					Terms: []*SortTerm{
 						{
-							X: &Ident{
+							X: (&Ident{
 								Name:     "bar",
 								NameSpan: newSpan(14, 17),
-							},
+							}).AsQualified(),
 							AscDescSpan: nullSpan(),
 							NullsFirst:  true,
 							NullsSpan:   newSpan(18, 29),
@@ -1042,16 +1042,16 @@ var parserTests = []struct {
 							},
 							Assign: newSpan(36, 37),
 							X: &BinaryExpr{
-								X: &Ident{
+								X: (&Ident{
 									Name:     "InjuriesDirect",
 									NameSpan: newSpan(38, 52),
-								},
+								}).AsQualified(),
 								OpSpan: newSpan(53, 54),
 								Op:     TokenPlus,
-								Y: &Ident{
+								Y: (&Ident{
 									Name:     "InjuriesIndirect",
 									NameSpan: newSpan(55, 71),
-								},
+								}).AsQualified(),
 							},
 						},
 					},
@@ -1077,17 +1077,17 @@ var parserTests = []struct {
 					GroupBy: []*SummarizeColumn{
 						{
 							Assign: nullSpan(),
-							X: &Ident{
+							X: (&Ident{
 								Name:     "State",
 								NameSpan: newSpan(27, 32),
-							},
+							}).AsQualified(),
 						},
 						{
 							Assign: nullSpan(),
-							X: &Ident{
+							X: (&Ident{
 								Name:     "EventType",
 								NameSpan: newSpan(34, 43),
-							},
+							}).AsQualified(),
 						},
 					},
 				},
@@ -1121,10 +1121,10 @@ var parserTests = []struct {
 									NameSpan: newSpan(30, 33),
 								},
 								Lparen: newSpan(33, 34),
-								Args: []Expr{&Ident{
+								Args: []Expr{(&Ident{
 									Name:     "Duration",
 									NameSpan: newSpan(34, 42),
-								}},
+								}).AsQualified()},
 								Rparen: newSpan(42, 43),
 							},
 						},
@@ -1140,10 +1140,10 @@ var parserTests = []struct {
 									NameSpan: newSpan(51, 54),
 								},
 								Lparen: newSpan(54, 55),
-								Args: []Expr{&Ident{
+								Args: []Expr{(&Ident{
 									Name:     "Duration",
 									NameSpan: newSpan(55, 63),
-								}},
+								}).AsQualified()},
 								Rparen: newSpan(63, 64),
 							},
 						},
@@ -1180,10 +1180,10 @@ var parserTests = []struct {
 									NameSpan: newSpan(38, 44),
 								},
 								Lparen: newSpan(44, 45),
-								Args: []Expr{&Ident{
+								Args: []Expr{(&Ident{
 									Name:     "EventType",
 									NameSpan: newSpan(45, 54),
-								}},
+								}).AsQualified()},
 								Rparen: newSpan(54, 55),
 							},
 						},
@@ -1192,10 +1192,10 @@ var parserTests = []struct {
 					GroupBy: []*SummarizeColumn{
 						{
 							Assign: nullSpan(),
-							X: &Ident{
+							X: (&Ident{
 								Name:     "State",
 								NameSpan: newSpan(59, 64),
-							},
+							}).AsQualified(),
 						},
 					},
 				},
@@ -1283,10 +1283,10 @@ var parserTests = []struct {
 					},
 					By: newSpan(20, 22),
 					Col: &SortTerm{
-						X: &Ident{
+						X: (&Ident{
 							Name:     "InjuriesDirect",
 							NameSpan: newSpan(23, 37),
-						},
+						}).AsQualified(),
 						AscDescSpan: nullSpan(),
 						NullsSpan:   nullSpan(),
 					},
@@ -1324,10 +1324,10 @@ var parserTests = []struct {
 					Rparen: newSpan(11, 12),
 					On:     newSpan(13, 15),
 					Conditions: []Expr{
-						&Ident{
+						(&Ident{
 							Name:     "Key",
 							NameSpan: newSpan(16, 19),
-						},
+						}).AsQualified(),
 					},
 				},
 			},
@@ -1367,10 +1367,10 @@ var parserTests = []struct {
 					Rparen: newSpan(26, 27),
 					On:     newSpan(28, 30),
 					Conditions: []Expr{
-						&Ident{
+						(&Ident{
 							Name:     "Key",
 							NameSpan: newSpan(31, 34),
-						},
+						}).AsQualified(),
 					},
 				},
 			},
@@ -1411,10 +1411,10 @@ var parserTests = []struct {
 					Rparen: newSpan(21, 22),
 					On:     newSpan(23, 25),
 					Conditions: []Expr{
-						&Ident{
+						(&Ident{
 							Name:     "Key",
 							NameSpan: newSpan(26, 29),
-						},
+						}).AsQualified(),
 					},
 				},
 			},
@@ -1451,10 +1451,10 @@ var parserTests = []struct {
 								Pipe:    newSpan(12, 13),
 								Keyword: newSpan(14, 19),
 								Predicate: &BinaryExpr{
-									X: &Ident{
+									X: (&Ident{
 										Name:     "z",
 										NameSpan: newSpan(20, 21),
-									},
+									}).AsQualified(),
 									Op:     TokenEq,
 									OpSpan: newSpan(22, 24),
 									Y: &BasicLit{
@@ -1469,9 +1469,72 @@ var parserTests = []struct {
 					Rparen: newSpan(26, 27),
 					On:     newSpan(28, 30),
 					Conditions: []Expr{
-						&Ident{
+						(&Ident{
 							Name:     "Key",
 							NameSpan: newSpan(31, 34),
+						}).AsQualified(),
+					},
+				},
+			},
+		},
+	},
+	{
+		name:  "JoinExplicitCondition",
+		query: "X | join (Y) on $left.Key == $right.Key",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&JoinOperator{
+					Pipe:    newSpan(2, 3),
+					Keyword: newSpan(4, 8),
+
+					Kind:       nullSpan(),
+					KindAssign: nullSpan(),
+
+					Lparen: newSpan(9, 10),
+					Right: &TabularExpr{
+						Source: &TableRef{
+							Table: &Ident{
+								Name:     "Y",
+								NameSpan: newSpan(10, 11),
+							},
+						},
+					},
+					Rparen: newSpan(11, 12),
+					On:     newSpan(13, 15),
+					Conditions: []Expr{
+						&BinaryExpr{
+							X: &QualifiedIdent{
+								Parts: []*Ident{
+									{
+										Name:     "$left",
+										NameSpan: newSpan(16, 21),
+									},
+									{
+										Name:     "Key",
+										NameSpan: newSpan(22, 25),
+									},
+								},
+							},
+							Op:     TokenEq,
+							OpSpan: newSpan(26, 28),
+							Y: &QualifiedIdent{
+								Parts: []*Ident{
+									{
+										Name:     "$right",
+										NameSpan: newSpan(29, 35),
+									},
+									{
+										Name:     "Key",
+										NameSpan: newSpan(36, 39),
+									},
+								},
+							},
 						},
 					},
 				},

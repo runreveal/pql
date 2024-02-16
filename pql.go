@@ -151,7 +151,7 @@ func (sub *subquery) write(sb *strings.Builder, source string) error {
 				sb.WriteString(", ")
 			}
 			if col.X == nil {
-				if err := writeExpression(sb, source, col.Name); err != nil {
+				if err := writeExpression(sb, source, col.Name.AsQualified()); err != nil {
 					return err
 				}
 			} else {
@@ -317,11 +317,22 @@ func writeExpression(sb *strings.Builder, source string, x parser.Expr) error {
 	}
 
 	switch x := x.(type) {
-	case *parser.Ident:
-		if sql, ok := builtinIdentifiers[x.Name]; !x.Quoted && ok {
-			sb.WriteString(sql)
-		} else {
-			quoteIdentifier(sb, x.Name)
+	case *parser.QualifiedIdent:
+		isBuiltin := false
+		if len(x.Parts) == 1 && !x.Parts[0].Quoted {
+			var sql string
+			sql, isBuiltin = builtinIdentifiers[x.Parts[0].Name]
+			if isBuiltin {
+				sb.WriteString(sql)
+			}
+		}
+		if !isBuiltin {
+			for i, part := range x.Parts {
+				if i > 0 {
+					sb.WriteString(".")
+				}
+				quoteIdentifier(sb, part.Name)
+			}
 		}
 	case *parser.BasicLit:
 		switch x.Kind {
@@ -449,7 +460,7 @@ func writeExpressionMaybeParen(sb *strings.Builder, source string, x parser.Expr
 	}
 
 	switch x := x.(type) {
-	case *parser.Ident, *parser.UnaryExpr, *parser.BasicLit:
+	case *parser.QualifiedIdent, *parser.UnaryExpr, *parser.BasicLit:
 		return writeExpression(sb, source, x)
 	case *parser.CallExpr:
 		if f := initKnownFunctions()[x.Func.Name]; f == nil || !f.needsParens {

@@ -404,6 +404,32 @@ var lexTests = []struct {
 			{Kind: TokenAssign, Span: newSpan(13, 14)},
 		},
 	},
+	{
+		name:  "DottedIdentifier",
+		query: "Table.Column",
+		want: []Token{
+			{Kind: TokenIdentifier, Span: newSpan(0, 5), Value: "Table"},
+			{Kind: TokenDot, Span: newSpan(5, 6)},
+			{Kind: TokenIdentifier, Span: newSpan(6, 12), Value: "Column"},
+		},
+	},
+	{
+		name:  "DollarIdentifier",
+		query: "$left.Column",
+		want: []Token{
+			{Kind: TokenIdentifier, Span: newSpan(0, 5), Value: "$left"},
+			{Kind: TokenDot, Span: newSpan(5, 6)},
+			{Kind: TokenIdentifier, Span: newSpan(6, 12), Value: "Column"},
+		},
+	},
+	{
+		name:  "DollarInIdentifier",
+		query: "x$y",
+		want: []Token{
+			{Kind: TokenIdentifier, Span: newSpan(0, 1), Value: "x"},
+			{Kind: TokenIdentifier, Span: newSpan(1, 3), Value: "$y"},
+		},
+	},
 }
 
 func TestScan(t *testing.T) {

@@ -28,6 +28,9 @@ func nodeSliceSpan[T Node](nodes []T) Span {
 }
 
 // An Ident node represents an identifier.
+//
+// Ident does not implement [Expr], but [QualifiedIdent] does.
+// You can use [*Ident.AsQualified] to convert an *Ident to a *QualifiedIdent.
 type Ident struct {
 	Name     string
 	NameSpan Span
@@ -43,7 +46,27 @@ func (id *Ident) Span() Span {
 	return id.NameSpan
 }
 
-func (id *Ident) expression() {}
+// AsQualified converts the identifier to a [QualifiedIdent] with a single part.
+func (id *Ident) AsQualified() *QualifiedIdent {
+	if id == nil {
+		return nil
+	}
+	return &QualifiedIdent{Parts: []*Ident{id}}
+}
+
+// A QualifiedIdent is one or more dot-separated identifiers.
+type QualifiedIdent struct {
+	Parts []*Ident
+}
+
+func (id *QualifiedIdent) Span() Span {
+	if id == nil {
+		return nullSpan()
+	}
+	return nodeSliceSpan(id.Parts)
+}
+
+func (id *QualifiedIdent) expression() {}
 
 // TabularExpr is a query expression that produces a table.
 type TabularExpr struct {

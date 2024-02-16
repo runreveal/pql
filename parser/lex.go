@@ -152,7 +152,7 @@ func Scan(query string) []Token {
 		switch {
 		case unicode.IsSpace(c):
 			// Skip insignificant whitespace.
-		case isAlpha(c) || c == '_':
+		case isAlpha(c) || c == '_' || c == '$':
 			s.prev()
 			tokens = append(tokens, s.ident())
 		case isDigit(c) || c == '.':
