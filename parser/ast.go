@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -478,3 +479,124 @@ func (call *CallExpr) Span() Span {
 }
 
 func (call *CallExpr) expression() {}
+
+// Walk traverses an AST in depth-first order.
+// If the visit function returns true for a node,
+// the visit function will be called for its children.
+func Walk(n Node, visit func(n Node) bool) {
+	stack := []Node{n}
+	for len(stack) > 0 {
+		curr := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch n := curr.(type) {
+		case *Ident:
+			visit(n)
+		case *QualifiedIdent:
+			if visit(n) {
+				for i := len(n.Parts) - 1; i >= 0; i-- {
+					stack = append(stack, n.Parts[i])
+				}
+			}
+		case *TabularExpr:
+			if visit(n) {
+				for i := len(n.Operators) - 1; i >= 0; i-- {
+					stack = append(stack, n.Operators[i])
+				}
+				stack = append(stack, n.Source)
+			}
+		case *TableRef:
+			if visit(n) {
+				stack = append(stack, n.Table)
+			}
+		case *CountOperator:
+			visit(n)
+		case *WhereOperator:
+			if visit(n) {
+				stack = append(stack, n.Predicate)
+			}
+		case *SortOperator:
+			if visit(n) {
+				for i := len(n.Terms) - 1; i >= 0; i-- {
+					stack = append(stack, n.Terms[i])
+				}
+			}
+		case *SortTerm:
+			if visit(n) {
+				stack = append(stack, n.X)
+			}
+		case *TakeOperator:
+			if visit(n) {
+				stack = append(stack, n.RowCount)
+			}
+		case *TopOperator:
+			if visit(n) {
+				stack = append(stack, n.Col)
+				stack = append(stack, n.RowCount)
+			}
+		case *ProjectOperator:
+			if visit(n) {
+				for i := len(n.Cols) - 1; i >= 0; i-- {
+					stack = append(stack, n.Cols[i])
+				}
+			}
+		case *ProjectColumn:
+			if visit(n) {
+				if n.X != nil {
+					stack = append(stack, n.X)
+				}
+				stack = append(stack, n.Name)
+			}
+		case *SummarizeOperator:
+			if visit(n) {
+				for i := len(n.GroupBy) - 1; i >= 0; i-- {
+					stack = append(stack, n.GroupBy[i])
+				}
+				for i := len(n.Cols) - 1; i >= 0; i-- {
+					stack = append(stack, n.Cols[i])
+				}
+			}
+		case *SummarizeColumn:
+			if visit(n) {
+				stack = append(stack, n.X)
+				if n.Name != nil {
+					stack = append(stack, n.Name)
+				}
+			}
+		case *JoinOperator:
+			if visit(n) {
+				// Skipping Flavor because it's more of a keyword on the operator than anything else.
+				for i := len(n.Conditions) - 1; i >= 0; i-- {
+					stack = append(stack, n.Conditions[i])
+				}
+				stack = append(stack, n.Right)
+			}
+		case *BinaryExpr:
+			if visit(n) {
+				stack = append(stack, n.Y)
+				stack = append(stack, n.X)
+			}
+		case *UnaryExpr:
+			if visit(n) {
+				stack = append(stack, n.X)
+			}
+		case *InExpr:
+			if visit(n) {
+				for i := len(n.Vals) - 1; i >= 0; i-- {
+					stack = append(stack, n.Vals[i])
+				}
+				stack = append(stack, n.X)
+			}
+		case *BasicLit:
+			visit(n)
+		case *CallExpr:
+			if visit(n) {
+				// Skipping Func because it's flat.
+				for i := len(n.Args) - 1; i >= 0; i-- {
+					stack = append(stack, n.Args[i])
+				}
+			}
+		default:
+			panic(fmt.Errorf("unknown Node type %T", n))
+		}
+	}
+}
