@@ -1,0 +1,10 @@
+{
+	"Copyright": {
+		"prefix": "copyright",
+		"body": [
+			"$LINE_COMMENT Copyright $CURRENT_YEAR RunReveal Inc.",
+			"$LINE_COMMENT SPDX-License-Identifier: Apache-2.0",
+		],
+		"description": "Copyright header"
+	}
+}

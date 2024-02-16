@@ -1,3 +1,6 @@
+// Copyright 2024 RunReveal Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package parser provides a parser and an Abstract Syntax Tree (AST) for the Pipeline Query Language.
 package parser
 

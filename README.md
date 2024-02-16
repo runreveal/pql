@@ -49,3 +49,7 @@ Functions not in this list will be passed through to the underlying SQL engine.
 - [`iff`/`iif`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/iff-function)
 - [`count`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/count-aggregation-function)
 - [`countif`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/countif-aggregation-function)
+
+## License
+
+[Apache 2.0](LICENSE)

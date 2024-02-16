@@ -1,3 +1,6 @@
+// Copyright 2024 RunReveal Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package parser
 
 import (

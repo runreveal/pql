@@ -1,3 +1,6 @@
+// Copyright 2024 RunReveal Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package pql provides a Pipeline Query Language that can be translated into SQL.
 package pql
 
