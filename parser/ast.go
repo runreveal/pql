@@ -483,6 +483,23 @@ func (call *CallExpr) Span() Span {
 
 func (call *CallExpr) expression() {}
 
+// An IndexExpr node represents an array or map index.
+type IndexExpr struct {
+	X      Expr
+	Lbrack Span
+	Index  Expr
+	Rbrack Span
+}
+
+func (idx *IndexExpr) Span() Span {
+	if idx == nil {
+		return nullSpan()
+	}
+	return unionSpans(nodeSpan(idx.X), idx.Lbrack, nodeSpan(idx.Index), idx.Rbrack)
+}
+
+func (idx *IndexExpr) expression() {}
+
 // Walk traverses an AST in depth-first order.
 // If the visit function returns true for a node,
 // the visit function will be called for its children.
@@ -597,6 +614,11 @@ func Walk(n Node, visit func(n Node) bool) {
 				for i := len(n.Args) - 1; i >= 0; i-- {
 					stack = append(stack, n.Args[i])
 				}
+			}
+		case *IndexExpr:
+			if visit(n) {
+				stack = append(stack, n.Index)
+				stack = append(stack, n.X)
 			}
 		default:
 			panic(fmt.Errorf("unknown Node type %T", n))

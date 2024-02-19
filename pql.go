@@ -607,6 +607,15 @@ func writeExpression(ctx *exprContext, sb *strings.Builder, x parser.Expr) error
 			}
 		}
 		sb.WriteString(")")
+	case *parser.IndexExpr:
+		if err := writeExpressionMaybeParen(ctx, sb, x.X); err != nil {
+			return err
+		}
+		sb.WriteString("[")
+		if err := writeExpression(ctx, sb, x.Index); err != nil {
+			return err
+		}
+		sb.WriteString("]")
 	case *parser.CallExpr:
 		if f := initKnownFunctions()[x.Func.Name]; f != nil {
 			if err := f.write(ctx, sb, x); err != nil {

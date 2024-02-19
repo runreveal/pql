@@ -709,6 +709,46 @@ var parserTests = []struct {
 		},
 	},
 	{
+		name:  "MapKey",
+		query: `tab | where mapcol['strkey'] == 42`,
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "tab",
+					NameSpan: newSpan(0, 3),
+				},
+			},
+			Operators: []TabularOperator{
+				&WhereOperator{
+					Pipe:    newSpan(4, 5),
+					Keyword: newSpan(6, 11),
+					Predicate: &BinaryExpr{
+						X: &IndexExpr{
+							X: (&Ident{
+								Name:     "mapcol",
+								NameSpan: newSpan(12, 18),
+							}).AsQualified(),
+							Lbrack: newSpan(18, 19),
+							Index: &BasicLit{
+								Kind:      TokenString,
+								Value:     "strkey",
+								ValueSpan: newSpan(19, 27),
+							},
+							Rbrack: newSpan(27, 28),
+						},
+						Op:     TokenEq,
+						OpSpan: newSpan(29, 31),
+						Y: &BasicLit{
+							Kind:      TokenNumber,
+							Value:     "42",
+							ValueSpan: newSpan(32, 34),
+						},
+					},
+				},
+			},
+		},
+	},
+	{
 		name:  "BadArgument",
 		query: "foo | where strcat('a', .bork, 'x', 'y')",
 		err:   true,
@@ -1540,6 +1580,49 @@ var parserTests = []struct {
 							},
 						},
 					},
+				},
+			},
+		},
+	},
+	{
+		name:  "JoinAndCount",
+		query: "X | join (Y) on Key | count",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&JoinOperator{
+					Pipe:    newSpan(2, 3),
+					Keyword: newSpan(4, 8),
+
+					Kind:       nullSpan(),
+					KindAssign: nullSpan(),
+
+					Lparen: newSpan(9, 10),
+					Right: &TabularExpr{
+						Source: &TableRef{
+							Table: &Ident{
+								Name:     "Y",
+								NameSpan: newSpan(10, 11),
+							},
+						},
+					},
+					Rparen: newSpan(11, 12),
+					On:     newSpan(13, 15),
+					Conditions: []Expr{
+						(&Ident{
+							Name:     "Key",
+							NameSpan: newSpan(16, 19),
+						}).AsQualified(),
+					},
+				},
+				&CountOperator{
+					Pipe:    newSpan(20, 21),
+					Keyword: newSpan(22, 27),
 				},
 			},
 		},

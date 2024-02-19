@@ -1,0 +1,26 @@
+{
+  "meta": [
+    {
+      "name": "id",
+      "type": "Int32"
+    },
+    {
+      "name": "a",
+      "type": "Map(String, UInt64)"
+    }
+  ],
+  "data": [
+    {
+      "id": 1,
+      "a": {"key1": 1, "key2": 10}
+    },
+    {
+      "id": 2,
+      "a": {"key1": 2, "key2": 20}
+    },
+    {
+      "id": 3,
+      "a": {"key1": 3, "key2": 30}
+    }
+  ]
+}

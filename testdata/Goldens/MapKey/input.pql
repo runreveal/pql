@@ -1,0 +1,4 @@
+MapTable
+| where a["key2"] > 10
+| sort by id asc
+| project Key1 = a["key1"], Key2 = a["key2"]

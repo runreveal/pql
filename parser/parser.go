@@ -780,6 +780,45 @@ func (p *parser) unaryExpr() (Expr, error) {
 }
 
 func (p *parser) primaryExpr() (Expr, error) {
+	x, err := p.innerPrimaryExpr()
+	if err != nil {
+		return x, err
+	}
+
+	for {
+		tok, ok := p.next()
+		if !ok {
+			return x, nil
+		}
+		switch tok.Kind {
+		case TokenLBracket:
+			idx := &IndexExpr{
+				X:      x,
+				Lbrack: tok.Span,
+			}
+			indexParser := p.split(TokenRBracket)
+			var err error
+			idx.Index, err = indexParser.expr()
+			if tok, _ := p.next(); tok.Kind == TokenRBracket {
+				idx.Rbrack = tok.Span
+			} else {
+				err = joinErrors(err, &parseError{
+					source: p.source,
+					span:   tok.Span,
+					err:    fmt.Errorf("expected ']', got %s", formatToken(p.source, tok)),
+				})
+			}
+			return idx, err
+		default:
+			p.prev()
+			return x, nil
+		}
+	}
+}
+
+// innerPrimaryExpr parses the first element of a primary expression
+// (i.e. a primary expression without any trailing index expressions).
+func (p *parser) innerPrimaryExpr() (Expr, error) {
 	tok, ok := p.next()
 	if !ok {
 		return nil, &parseError{
@@ -926,7 +965,11 @@ func (p *parser) qualifiedIdent() (*QualifiedIdent, error) {
 // It ignores tokens that are in parenthetical groups after the initial parse position.
 // If no such token is found, skipTo advances to EOF.
 func (p *parser) split(search TokenKind) *parser {
-	parenLevel := 0
+	// stack is the list of expected closing parentheses/brackets.
+	// When a closing parenthesis/bracket is encountered,
+	// the stack is popped to include the first matching parenthesis/bracket.
+	var stack []TokenKind
+
 	start := p.pos
 loop:
 	for {
@@ -940,21 +983,34 @@ loop:
 		}
 
 		switch tok.Kind {
-		case TokenLParen:
-			if search == TokenLParen {
+		case TokenLParen, TokenLBracket:
+			if search == tok.Kind {
 				p.prev()
 				break loop
 			}
-			parenLevel++
-		case TokenRParen:
-			if parenLevel > 0 {
-				parenLevel--
-			} else if search == TokenRParen {
+			switch tok.Kind {
+			case TokenLParen:
+				stack = append(stack, TokenRParen)
+			case TokenLBracket:
+				stack = append(stack, TokenRBracket)
+			default:
+				panic("unreachable")
+			}
+		case TokenRParen, TokenRBracket:
+			if len(stack) > 0 {
+				for len(stack) > 0 {
+					k := stack[len(stack)-1]
+					stack = stack[:len(stack)-1]
+					if k == tok.Kind {
+						break
+					}
+				}
+			} else if search == tok.Kind {
 				p.prev()
 				break loop
 			}
 		case search:
-			if parenLevel <= 0 {
+			if len(stack) == 0 {
 				p.prev()
 				break loop
 			}
