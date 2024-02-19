@@ -121,6 +121,14 @@ var lexTests = []struct {
 		},
 	},
 	{
+		name:  "SlashAtEOF",
+		query: "foo /",
+		want: []Token{
+			{Kind: TokenIdentifier, Span: newSpan(0, 3), Value: "foo"},
+			{Kind: TokenSlash, Span: newSpan(4, 5)},
+		},
+	},
+	{
 		name:  "Zero",
 		query: "0",
 		want: []Token{
@@ -248,6 +256,22 @@ var lexTests = []struct {
 		query: `"abc\"\n\t\\def"`,
 		want: []Token{
 			{Kind: TokenString, Span: newSpan(0, 16), Value: "abc\"\n\t\\def"},
+		},
+	},
+	{
+		name:  "StringWithEOFAfterBackslash",
+		query: `"abc\`,
+		want: []Token{
+			{Kind: TokenError, Span: newSpan(0, 5)},
+		},
+	},
+	{
+		name:  "StringWithNewlineAfterBackslash",
+		query: `"abc\` + "\n" + `def"`,
+		want: []Token{
+			{Kind: TokenError, Span: newSpan(0, 5)},
+			{Kind: TokenIdentifier, Span: newSpan(6, 9), Value: "def"},
+			{Kind: TokenError, Span: newSpan(9, 10)},
 		},
 	},
 	{
@@ -515,5 +539,23 @@ func BenchmarkScan(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		Scan(`StormEvents | where EventType == "Tornado" or EventType != "Thunderstorm Wind"`)
+	}
+}
+
+func TestSplitStatements(t *testing.T) {
+	tests := []struct {
+		source string
+		want   []string
+	}{
+		{"", []string{""}},
+		{"foo", []string{"foo"}},
+		{"foo;bar", []string{"foo", "bar"}},
+		{"foo';'bar", []string{"foo';'bar"}},
+	}
+	for _, test := range tests {
+		got := SplitStatements(test.source)
+		if diff := cmp.Diff(test.want, got); diff != "" {
+			t.Errorf("SplitStatements(%q) (-want +got):\n%s", test.source, diff)
+		}
 	}
 }

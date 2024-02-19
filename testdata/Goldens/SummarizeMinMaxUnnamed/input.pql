@@ -1,0 +1,2 @@
+SourceFiles
+| summarize min(LineCount), max(LineCount)
