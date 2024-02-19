@@ -41,9 +41,10 @@ func Compile(source string) (string, error) {
 			}
 			sb.WriteString(")")
 			if i < len(ctes)-1 {
-				sb.WriteString(",")
+				sb.WriteString(",\n     ")
+			} else {
+				sb.WriteString("\n")
 			}
-			sb.WriteString("\n")
 		}
 	}
 	if err := query.write(ctx, sb); err != nil {
