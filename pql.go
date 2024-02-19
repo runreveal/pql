@@ -69,6 +69,17 @@ func splitQueries(dst []*subquery, source string, expr *parser.TabularExpr) ([]*
 	var lastSubquery *subquery
 	for i := 0; i < len(expr.Operators); i++ {
 		switch op := expr.Operators[i].(type) {
+		case *parser.AsOperator:
+			var err error
+			lastSubquery, err = chainSubquery(dst, dstStart, expr.Source)
+			if err != nil {
+				return nil, err
+			}
+			lastSubquery.name = op.Name.Name
+			// AsOperator gets treated basically the same as nil,
+			// but won't permit anything to be attached.
+			lastSubquery.op = op
+			dst = append(dst, lastSubquery)
 		case *parser.SortOperator:
 			if lastSubquery == nil || !canAttachSort(lastSubquery.op) || lastSubquery.sort != nil || lastSubquery.take != nil {
 				var err error
@@ -219,7 +230,7 @@ func subqueryName(i int) string {
 // because they change the identifiers in scope.
 func canAttachSort(op parser.TabularOperator) bool {
 	switch op.(type) {
-	case *parser.ProjectOperator, *parser.SummarizeOperator:
+	case *parser.ProjectOperator, *parser.SummarizeOperator, *parser.AsOperator:
 		return false
 	default:
 		return true
@@ -285,7 +296,7 @@ func hasJoinTerms(x parser.Expr) (left, right bool) {
 
 func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 	switch op := sub.op.(type) {
-	case nil:
+	case nil, *parser.AsOperator:
 		sb.WriteString("SELECT * FROM ")
 		sb.WriteString(sub.sourceSQL)
 	case *parser.ProjectOperator:

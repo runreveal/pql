@@ -142,6 +142,12 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 				expr.Operators = append(expr.Operators, op)
 			}
 			finalError = joinErrors(finalError, err)
+		case "as":
+			op, err := opParser.asOperator(pipeToken, operatorName)
+			if op != nil {
+				expr.Operators = append(expr.Operators, op)
+			}
+			finalError = joinErrors(finalError, err)
 		default:
 			finalError = joinErrors(finalError, &parseError{
 				source: opParser.source,
@@ -600,6 +606,16 @@ func (p *parser) joinOperator(pipe, keyword Token) (*JoinOperator, error) {
 	finalError = joinErrors(finalError, makeErrorOpaque(err))
 
 	return op, finalError
+}
+
+func (p *parser) asOperator(pipe, keyword Token) (*AsOperator, error) {
+	op := &AsOperator{
+		Pipe:    pipe.Span,
+		Keyword: keyword.Span,
+	}
+	var err error
+	op.Name, err = p.ident()
+	return op, makeErrorOpaque(err)
 }
 
 // exprList parses one or more comma-separated expressions.

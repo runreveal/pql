@@ -31,6 +31,7 @@ LIMIT 3;
 
 The following tabular operators are supported:
 
+- [`as`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/as-operator)
 - [`count`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/count-operator)
 - [`join`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/join-operator)
 - [`project`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/project-operator)

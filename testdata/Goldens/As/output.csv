@@ -1,0 +1,4 @@
+TargetId,StartEventId,StopEventId
+123,1,5
+456,3,7
+789,6,-1

@@ -1668,6 +1668,28 @@ var parserTests = []struct {
 			},
 		},
 	},
+	{
+		name:  "As",
+		query: "X | as Y",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&AsOperator{
+					Pipe:    newSpan(2, 3),
+					Keyword: newSpan(4, 6),
+					Name: &Ident{
+						Name:     "Y",
+						NameSpan: newSpan(7, 8),
+					},
+				},
+			},
+		},
+	},
 }
 
 func TestParse(t *testing.T) {

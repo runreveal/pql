@@ -332,6 +332,20 @@ func (op *JoinOperator) Span() Span {
 	)
 }
 
+// AsOperator represents a `| as` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type AsOperator struct {
+	Pipe    Span
+	Keyword Span
+	Name    *Ident
+}
+
+func (op *AsOperator) tabularOperator() {}
+
+func (op *AsOperator) Span() Span {
+	return unionSpans(op.Pipe, op.Keyword, op.Name.Span())
+}
+
 // Expr is the interface implemented by all expression AST node types.
 type Expr interface {
 	Node
@@ -589,6 +603,10 @@ func Walk(n Node, visit func(n Node) bool) {
 					stack = append(stack, n.Conditions[i])
 				}
 				stack = append(stack, n.Right)
+			}
+		case *AsOperator:
+			if visit(n) {
+				stack = append(stack, n.Name)
 			}
 		case *BinaryExpr:
 			if visit(n) {

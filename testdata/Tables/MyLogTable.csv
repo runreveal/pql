@@ -1,0 +1,8 @@
+EventId,EventType,TargetType,TargetId
+1,Start,X,123
+2,Start,Y,555
+3,Start,X,456
+4,Stop,Y,555
+5,Stop,X,123
+6,Start,X,789
+7,Stop,X,456

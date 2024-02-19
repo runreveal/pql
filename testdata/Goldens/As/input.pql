@@ -1,0 +1,11 @@
+MyLogTable
+| where TargetType == "X"
+| as T
+| where EventType == "Start"
+| join kind=leftouter (
+  T
+  | where EventType == "Stop"
+  | project TargetId, StopEventId=EventId
+) on TargetId
+| project TargetId, StartEventId = EventId, StopEventId = coalesce(StopEventId, -1)
+| sort by StartEventId asc
