@@ -52,6 +52,8 @@ Functions not in this list will be passed through to the underlying SQL engine.
 - [`count`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/count-aggregation-function)
 - [`countif`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/countif-aggregation-function)
 
+Column names with special characters can be escaped with backticks.
+
 ## License
 
 [Apache 2.0](LICENSE)
