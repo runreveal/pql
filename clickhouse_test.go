@@ -58,11 +58,15 @@ func TestClickhouseLocal(t *testing.T) {
 
 			var args []string
 			args = append(args, "local", "--format", "CSVWithNames")
-			sb := new(strings.Builder)
+			fnameBuf := new(strings.Builder)
+			formatBuf := new(strings.Builder)
 			for _, tab := range tables {
-				sb.Reset()
-				quoteSQLString(sb, tab.filename)
-				args = append(args, "--query", fmt.Sprintf("CREATE TABLE \"%s\" AS file(%s, 'CSVWithNames');", tab.name, sb))
+				fnameBuf.Reset()
+				quoteSQLString(fnameBuf, tab.filename)
+				formatBuf.Reset()
+				quoteSQLString(formatBuf, tab.format)
+				stmt := fmt.Sprintf("CREATE TABLE \"%s\" AS file(%s, %s);", tab.name, fnameBuf, formatBuf)
+				args = append(args, "--query", stmt)
 			}
 			args = append(args, "--query", query)
 
@@ -120,6 +124,7 @@ func isRowLess(row1, row2 []string) bool {
 type localTable struct {
 	name     string
 	filename string
+	format   string
 }
 
 // findLocalTables finds all CSV files in a directory that represent tables.
@@ -137,12 +142,20 @@ func findLocalTables(dir string) ([]localTable, error) {
 	var result []localTable
 	for _, entry := range listing {
 		filename := entry.Name()
-		baseName, isCSV := strings.CutSuffix(filename, ".csv")
-		if entry.Type().IsRegular() && isCSV && !shouldIgnoreFilename(filename) {
-			result = append(result, localTable{
-				name:     baseName,
-				filename: filepath.Join(dir, filename),
-			})
+		if entry.Type().IsRegular() && !shouldIgnoreFilename(filename) {
+			if baseName, isCSV := strings.CutSuffix(filename, ".csv"); isCSV {
+				result = append(result, localTable{
+					name:     baseName,
+					filename: filepath.Join(dir, filename),
+					format:   "CSVWithNames",
+				})
+			} else if baseName, isJSON := strings.CutSuffix(filename, ".json"); isJSON {
+				result = append(result, localTable{
+					name:     baseName,
+					filename: filepath.Join(dir, filename),
+					format:   "JSON",
+				})
+			}
 		}
 	}
 	return result, nil
