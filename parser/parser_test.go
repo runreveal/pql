@@ -749,6 +749,47 @@ var parserTests = []struct {
 		},
 	},
 	{
+		name:  "MapKeyTrailingExpression",
+		query: `tab | where mapcol['strkey' x] == 42`,
+		err:   true,
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "tab",
+					NameSpan: newSpan(0, 3),
+				},
+			},
+			Operators: []TabularOperator{
+				&WhereOperator{
+					Pipe:    newSpan(4, 5),
+					Keyword: newSpan(6, 11),
+					Predicate: &BinaryExpr{
+						X: &IndexExpr{
+							X: (&Ident{
+								Name:     "mapcol",
+								NameSpan: newSpan(12, 18),
+							}).AsQualified(),
+							Lbrack: newSpan(18, 19),
+							Index: &BasicLit{
+								Kind:      TokenString,
+								Value:     "strkey",
+								ValueSpan: newSpan(19, 27),
+							},
+							Rbrack: newSpan(29, 30),
+						},
+						Op:     TokenEq,
+						OpSpan: newSpan(31, 33),
+						Y: &BasicLit{
+							Kind:      TokenNumber,
+							Value:     "42",
+							ValueSpan: newSpan(34, 36),
+						},
+					},
+				},
+			},
+		},
+	},
+	{
 		name:  "BadArgument",
 		query: "foo | where strcat('a', .bork, 'x', 'y')",
 		err:   true,

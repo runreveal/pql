@@ -799,6 +799,7 @@ func (p *parser) primaryExpr() (Expr, error) {
 			indexParser := p.split(TokenRBracket)
 			var err error
 			idx.Index, err = indexParser.expr()
+			err = joinErrors(err, indexParser.endSplit())
 			if tok, _ := p.next(); tok.Kind == TokenRBracket {
 				idx.Rbrack = tok.Span
 			} else {
@@ -1036,6 +1037,8 @@ func (p *parser) endSplit() error {
 			s = "'|'"
 		case TokenRParen:
 			s = "')'"
+		case TokenRBracket:
+			s = "']'"
 		default:
 			s = p.splitKind.String()
 		}
