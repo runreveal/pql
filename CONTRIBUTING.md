@@ -65,3 +65,6 @@ If you're adding a new syntactical element, you should first add it to the [lexe
 You will then need to modify the parser to handle this new type of token.
 The exact set of changes varies depending on how the token is used,
 but the process will be similar to adding a new tabular operator.
+See the [commit that introduced indexing expressions][304dbdfab] for an example.
+
+[304dbdfab]: https://github.com/runreveal/pql/commit/304dbdfaba9efd3ee3c894ac4c2140619033d7b2
