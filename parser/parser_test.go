@@ -42,12 +42,12 @@ var parserTests = []struct {
 	},
 	{
 		name:  "OnlyQuotedTableName",
-		query: `["StormEvents"]`,
+		query: "`StormEvents`",
 		want: &TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
-					NameSpan: newSpan(0, 15),
+					NameSpan: newSpan(0, 13),
 					Quoted:   true,
 				},
 			},

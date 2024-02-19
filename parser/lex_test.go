@@ -37,31 +37,67 @@ var lexTests = []struct {
 		},
 	},
 	{
-		name:  "SingleQuotedIdent",
-		query: "['foo']\n",
+		name:  "QuotedIdent",
+		query: "`foo`\n",
 		want: []Token{
-			{Kind: TokenQuotedIdentifier, Span: newSpan(0, 7), Value: "foo"},
+			{Kind: TokenQuotedIdentifier, Span: newSpan(0, 5), Value: "foo"},
 		},
 	},
 	{
-		name:  "DoubleQuotedIdent",
-		query: `["foo"]`,
+		name:  "QuotedIdentDoubled",
+		query: "`x``y`\n",
 		want: []Token{
-			{Kind: TokenQuotedIdentifier, Span: newSpan(0, 7), Value: "foo"},
+			{Kind: TokenQuotedIdentifier, Span: newSpan(0, 6), Value: "x`y"},
 		},
 	},
 	{
 		name:  "UnterminatedQuotedIdent",
-		query: `["foo"`,
+		query: "`foo",
 		want: []Token{
-			{Kind: TokenError, Span: newSpan(0, 6)},
+			{Kind: TokenError, Span: newSpan(0, 4)},
 		},
 	},
 	{
 		name:  "LineSplitQuotedIdent",
+		query: "`foo\nbar`",
+		want: []Token{
+			{Kind: TokenError, Span: newSpan(0, 4)},
+			{Kind: TokenIdentifier, Span: newSpan(5, 8), Value: "bar"},
+			{Kind: TokenError, Span: newSpan(8, 9)},
+		},
+	},
+	{
+		name:  "SingleQuotedMapKey",
+		query: "['foo']\n",
+		want: []Token{
+			{Kind: TokenLBracket, Span: newSpan(0, 1)},
+			{Kind: TokenString, Span: newSpan(1, 6), Value: "foo"},
+			{Kind: TokenRBracket, Span: newSpan(6, 7)},
+		},
+	},
+	{
+		name:  "DoubleQuotedMapKey",
+		query: `["foo"]`,
+		want: []Token{
+			{Kind: TokenLBracket, Span: newSpan(0, 1)},
+			{Kind: TokenString, Span: newSpan(1, 6), Value: "foo"},
+			{Kind: TokenRBracket, Span: newSpan(6, 7)},
+		},
+	},
+	{
+		name:  "UnterminatedMapKey",
+		query: `["foo"`,
+		want: []Token{
+			{Kind: TokenLBracket, Span: newSpan(0, 1)},
+			{Kind: TokenString, Span: newSpan(1, 6), Value: "foo"},
+		},
+	},
+	{
+		name:  "LineSplitMapKey",
 		query: "['foo\nbar']",
 		want: []Token{
-			{Kind: TokenError, Span: newSpan(0, 5)},
+			{Kind: TokenLBracket, Span: newSpan(0, 1)},
+			{Kind: TokenError, Span: newSpan(1, 5)},
 			{Kind: TokenIdentifier, Span: newSpan(6, 9), Value: "bar"},
 			{Kind: TokenError, Span: newSpan(9, 11)},
 		},

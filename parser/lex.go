@@ -24,8 +24,9 @@ const (
 	// The Value will be the identifier itself.
 	TokenIdentifier TokenKind = 1 + iota
 	// TokenQuotedIdentifier is an identifier
-	// surrounded by `['` and `']` or `["` and `"]`.
-	// The Value will be the contents of the quoted string.
+	// surrounded by backticks
+	// The Value will be the content between the backticks
+	// with any double backticks reduced.
 	TokenQuotedIdentifier
 	// TokenNumber is a numeric literal like "123", "3.14", "1e-9", or "0xdeadbeef".
 	// The Value will be a decimal formatted string.
@@ -100,6 +101,13 @@ const (
 	// The Value will be the empty string.
 	TokenRParen
 
+	// TokenLBracket is a left bracket ("[").
+	// The Value will be the empty string.
+	TokenLBracket
+	// TokenRBracket is a right bracket ("]").
+	// The Value will be the empty string.
+	TokenRBracket
+
 	// TokenBy is the keyword "in".
 	// The Value will be the empty string.
 	TokenIn
@@ -169,14 +177,14 @@ func Scan(query string) []Token {
 		case c == '"' || c == '\'':
 			s.prev()
 			tokens = append(tokens, s.string())
+		case c == '`':
+			s.prev()
+			tokens = append(tokens, s.quotedIdent())
 		case c == '|':
 			tokens = append(tokens, Token{
 				Kind: TokenPipe,
 				Span: newSpan(start, s.pos),
 			})
-		case c == '[':
-			s.prev()
-			tokens = append(tokens, s.quotedIdent())
 		case c == '(':
 			tokens = append(tokens, Token{
 				Kind: TokenLParen,
@@ -185,6 +193,16 @@ func Scan(query string) []Token {
 		case c == ')':
 			tokens = append(tokens, Token{
 				Kind: TokenRParen,
+				Span: newSpan(start, s.pos),
+			})
+		case c == '[':
+			tokens = append(tokens, Token{
+				Kind: TokenLBracket,
+				Span: newSpan(start, s.pos),
+			})
+		case c == ']':
+			tokens = append(tokens, Token{
+				Kind: TokenRBracket,
 				Span: newSpan(start, s.pos),
 			})
 		case c == '=':
@@ -366,37 +384,30 @@ func (s *scanner) ident() Token {
 
 func (s *scanner) quotedIdent() Token {
 	start := s.pos
-	if c, ok := s.next(); !ok || c != '[' {
-		return errorToken(newSpan(start, s.pos), "parse quoted identifier: expected '[', found %q", c)
-	}
-	quoteChar, ok := s.next()
-	if !ok {
-		return errorToken(newSpan(start, s.pos), "parse quoted identifier: expected '[', found %q", quoteChar)
-	}
-	if quoteChar != '\'' && quoteChar != '"' {
-		s.prev()
-		return errorToken(newSpan(start, s.pos), "parse quoted identifier: expected ' or \", found %q", quoteChar)
+	if c, ok := s.next(); !ok || c != '`' {
+		return errorToken(newSpan(start, s.pos), "parse quoted identifier: expected '`', found %q", c)
 	}
 
 	for {
-		// Check for terminator.
-		tail := s.s[s.pos:]
-		if len(tail) >= 2 && tail[0] == byte(quoteChar) && tail[1] == ']' {
-			value := s.s[start+len(`["`) : s.pos]
-			s.pos += len(`"]`)
-			return Token{
-				Kind:  TokenQuotedIdentifier,
-				Span:  newSpan(start, s.pos),
-				Value: value,
-			}
-		}
-
-		// Now check for end of line or end of query.
 		c, ok := s.next()
 		if !ok {
 			return errorToken(newSpan(start, s.pos), "parse quoted identifier: unexpected EOF")
 		}
-		if c == '\n' {
+		switch c {
+		case '`':
+			// Check if double backtick.
+			c, ok = s.next()
+			if !ok || c != '`' {
+				if ok {
+					s.prev()
+				}
+				return Token{
+					Kind:  TokenQuotedIdentifier,
+					Span:  newSpan(start, s.pos),
+					Value: strings.ReplaceAll(s.s[start+len("`"):s.pos-len("`")], "``", "`"),
+				}
+			}
+		case '\n':
 			s.prev()
 			return errorToken(newSpan(start, s.pos), "parse quoted identifier: unexpected end of line")
 		}
