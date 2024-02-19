@@ -45,6 +45,9 @@ Now for compilation:
 7.  Add an [end-to-end test](testdata/Goldens/README.md)
     to verify that your operator compiles as expected.
 
+See the [commit that introduced the `as` operator][2c1064abf] for an example.
+
+[2c1064abf]: https://github.com/runreveal/pql/commit/2c1064abfc725159ca9752b3c140bd78a4373865
 [recursive descent parser]: https://en.wikipedia.org/wiki/Recursive_descent_parser
 
 ## How to add a new token
