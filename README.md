@@ -1,10 +1,17 @@
-# Pipeline Query Language
+# pipelined query language
 
-This Go library compiles a pipeline-based query language
+[![Website](https://img.shields.io/badge/INTRO-WEB-blue?style=for-the-badge)](https://pql.dev)
+[![Playground](https://img.shields.io/badge/INTRO-PLAYGROUND-blue?style=for-the-badge)](https://pql.dev)
+[![Language Docs](https://img.shields.io/badge/DOCS-BOOK-blue?style=for-the-badge)](https://prql-lang.org/book)
+[![Discord](https://img.shields.io/discord/1120882187785470113?label=discord%20chat&style=for-the-badge)](https://discord.gg/PbeXzrWP)
+
+
+This Go library compiles a pipelined-based query language
 (inspired by the [Kusto Query Language][])
 into SQL.
 It has been specifically tested to work with the [Clickhouse SQL dialect][],
-but the generated SQL is intentionally database agnostic.
+but the generated SQL is intentionally database agnostic. This repository
+contains a the Go library, and a CLI to invoke the library.
 
 For example, the following expression:
 
@@ -27,9 +34,38 @@ LIMIT 3;
 [Kusto Query Language]: https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/
 [Clickhouse SQL dialect]: https://clickhouse.com/docs/en/sql-reference
 
-## Features
+## Getting Started
+If you'd like to see a demo along with some examples, check out https://pql.dev.
 
-The following tabular operators are supported:
+To use pql in your go code, a minimal example might look like this
+```
+package main
+
+import (
+	"github.com/runreveal/pql"
+)
+
+func main() {
+	sql, err := pql.Compile("users | project id, email | limit 5")
+	if err != nil {
+		panic(err)
+	}
+	println(sql)
+}
+```
+
+Running this program should give you the following output
+```
+$ go run test.go
+
+WITH "__subquery0" AS (SELECT "id" AS "id", "email" AS "email" FROM "users")
+SELECT * FROM "__subquery0" LIMIT 5;
+```
+
+## Documentation
+
+The following tabular operators are supported and the Microsoft KQL
+documentation is representative of the current pql api.
 
 - [`as`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/as-operator)
 - [`count`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/count-operator)
@@ -41,8 +77,9 @@ The following tabular operators are supported:
 - [`top`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/top-operator)
 - [`where`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/where-operator)
 
-The following functions are specifically handled.
-Functions not in this list will be passed through to the underlying SQL engine.
+The following scalar functions implemented within pql. Functions not in this
+list will be passed through to the underlying SQL engine. This allows the usage
+of the full APIs implemented by the underlying
 
 - [`not`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/not-function)
 - [`isnull`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/isnull-function)
@@ -54,6 +91,9 @@ Functions not in this list will be passed through to the underlying SQL engine.
 
 Column names with special characters can be escaped with backticks.
 
-## License
+## Get involved
+- Join our [discord](https://discord.gg/XWKF5s5g)
+- Contribute a [scalar function](./CONTRIBUTING.md)
 
+## License
 [Apache 2.0](LICENSE)
