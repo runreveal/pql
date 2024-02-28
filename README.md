@@ -70,6 +70,7 @@ documentation is representative of the current pql api.
 - [`count`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/count-operator)
 - [`join`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/join-operator)
 - [`project`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/project-operator)
+- [`extend`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/extend-operator)
 - [`sort`/`order`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/sort-operator)
 - [`summarize`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/summarize-operator)
 - [`take`/`limit`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/take-operator)
