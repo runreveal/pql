@@ -71,3 +71,8 @@ but the process will be similar to adding a new tabular operator.
 See the [commit that introduced indexing expressions][304dbdfab] for an example.
 
 [304dbdfab]: https://github.com/runreveal/pql/commit/304dbdfaba9efd3ee3c894ac4c2140619033d7b2
+
+## For any new token, operator or function
+
+Add an example to the [Golden tests](testdata/Goldens/README.md) in the
+testdata directory demonstrating the usage of the new feature.
