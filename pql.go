@@ -320,6 +320,24 @@ func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 		}
 		sb.WriteString(" FROM ")
 		sb.WriteString(sub.sourceSQL)
+	case *parser.ExtendOperator:
+		sb.WriteString("SELECT *")
+		for _, col := range op.Cols {
+			sb.WriteString(", ")
+			if col.X == nil {
+				if err := writeExpression(ctx, sb, col.Name.AsQualified()); err != nil {
+					return err
+				}
+			} else {
+				if err := writeExpression(ctx, sb, col.X); err != nil {
+					return err
+				}
+			}
+			sb.WriteString(" AS ")
+			quoteIdentifier(sb, col.Name.Name)
+		}
+		sb.WriteString(" FROM ")
+		sb.WriteString(sub.sourceSQL)
 	case *parser.SummarizeOperator:
 		sb.WriteString("SELECT ")
 		for i, col := range op.GroupBy {
