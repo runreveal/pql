@@ -130,6 +130,12 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 				expr.Operators = append(expr.Operators, op)
 			}
 			finalError = joinErrors(finalError, err)
+		case "extend":
+			op, err := opParser.extendOperator(pipeToken, operatorName)
+			if op != nil {
+				expr.Operators = append(expr.Operators, op)
+			}
+			finalError = joinErrors(finalError, err)
 		case "summarize":
 			op, err := opParser.summarizeOperator(pipeToken, operatorName)
 			if op != nil {
@@ -383,6 +389,45 @@ func (p *parser) projectOperator(pipe, keyword Token) (*ProjectOperator, error) 
 		switch sep.Kind {
 		case TokenComma:
 			continue
+		case TokenAssign:
+			col.Assign = sep.Span
+			col.X, err = p.expr()
+			if err != nil {
+				return op, makeErrorOpaque(err)
+			}
+			sep, ok = p.next()
+			if !ok || sep.Kind != TokenComma {
+				return op, nil
+			}
+		default:
+			p.prev()
+			return op, nil
+		}
+	}
+}
+
+func (p *parser) extendOperator(pipe, keyword Token) (*ExtendOperator, error) {
+	op := &ExtendOperator{
+		Pipe:    pipe.Span,
+		Keyword: keyword.Span,
+	}
+
+	for {
+		colName, err := p.ident()
+		if err != nil {
+			return op, makeErrorOpaque(err)
+		}
+		col := &ExtendColumn{
+			Name:   colName,
+			Assign: nullSpan(),
+		}
+		op.Cols = append(op.Cols, col)
+
+		sep, ok := p.next()
+		if !ok {
+			return op, fmt.Errorf("expected '=' followed by expression for assignment, got EOF")
+		}
+		switch sep.Kind {
 		case TokenAssign:
 			col.Assign = sep.Span
 			col.X, err = p.expr()

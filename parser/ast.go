@@ -251,6 +251,40 @@ func (op *ProjectColumn) Span() Span {
 	return unionSpans(op.Name.Span(), op.Assign, nodeSpan(op.X))
 }
 
+// ExtendOperator represents a `| extend` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type ExtendOperator struct {
+	Pipe    Span
+	Keyword Span
+	Cols    []*ExtendColumn
+}
+
+func (op *ExtendOperator) tabularOperator() {}
+
+func (op *ExtendOperator) Span() Span {
+	if op == nil {
+		return nullSpan()
+	}
+	return unionSpans(op.Pipe, op.Keyword, nodeSliceSpan(op.Cols))
+}
+
+// A ExtendColumn is a single column term in a [ExtendOperator].
+// It consists of a column name,
+// and must be followed by an expression specifying how to compute the column.
+// If the expression is omitted, it is invalid.
+type ExtendColumn struct {
+	Name   *Ident
+	Assign Span
+	X      Expr
+}
+
+func (op *ExtendColumn) Span() Span {
+	if op == nil {
+		return nullSpan()
+	}
+	return unionSpans(op.Name.Span(), op.Assign, nodeSpan(op.X))
+}
+
 // SummarizeOperator represents a `| summarize` operator in a [TabularExpr].
 // It implements [TabularOperator].
 type SummarizeOperator struct {
@@ -574,6 +608,19 @@ func Walk(n Node, visit func(n Node) bool) {
 				}
 			}
 		case *ProjectColumn:
+			if visit(n) {
+				if n.X != nil {
+					stack = append(stack, n.X)
+				}
+				stack = append(stack, n.Name)
+			}
+		case *ExtendOperator:
+			if visit(n) {
+				for i := len(n.Cols) - 1; i >= 0; i-- {
+					stack = append(stack, n.Cols[i])
+				}
+			}
+		case *ExtendColumn:
 			if visit(n) {
 				if n.X != nil {
 					stack = append(stack, n.X)
