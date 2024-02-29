@@ -1,6 +1,6 @@
 State,EventType,DamageProperty, foo
-ATLANTIC SOUTH,Waterspout,0, 1
-FLORIDA,Heavy Rain,0, 1
-FLORIDA,Tornado,6200000, 1
-GEORGIA,Thunderstorm Wind,2000, 1
-MISSISSIPPI,Thunderstorm Wind,20000, 1
+ATLANTIC SOUTH,Waterspout,0,1
+FLORIDA,Heavy Rain,0,1
+FLORIDA,Tornado,6200000,1
+GEORGIA,Thunderstorm Wind,2000,1
+MISSISSIPPI,Thunderstorm Wind,20000,1
