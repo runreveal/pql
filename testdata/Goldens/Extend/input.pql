@@ -1,0 +1,2 @@
+StormEvents
+| extend foo=1
