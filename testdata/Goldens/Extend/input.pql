@@ -1,0 +1,3 @@
+StormEvents
+| project State, EventType, DamageProperty
+| extend foo=1

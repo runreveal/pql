@@ -1144,6 +1144,45 @@ var parserTests = []struct {
 		},
 	},
 	{
+		name:  "ExtendExpr",
+		query: "StormEvents | extend TotalInjuries = InjuriesDirect + InjuriesIndirect",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "StormEvents",
+					NameSpan: newSpan(0, 11),
+				},
+			},
+			Operators: []TabularOperator{
+				&ExtendOperator{
+					Pipe:    newSpan(12, 13),
+					Keyword: newSpan(14, 20),
+					Cols: []*ExtendColumn{
+						{
+							Name: &Ident{
+								Name:     "TotalInjuries",
+								NameSpan: newSpan(21, 34),
+							},
+							Assign: newSpan(35, 36),
+							X: &BinaryExpr{
+								X: (&Ident{
+									Name:     "InjuriesDirect",
+									NameSpan: newSpan(37, 51),
+								}).AsQualified(),
+								OpSpan: newSpan(52, 53),
+								Op:     TokenPlus,
+								Y: (&Ident{
+									Name:     "InjuriesIndirect",
+									NameSpan: newSpan(54, 70),
+								}).AsQualified(),
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+	{
 		name:  "UniqueCombination",
 		query: "StormEvents | summarize by State, EventType",
 		want: &TabularExpr{
