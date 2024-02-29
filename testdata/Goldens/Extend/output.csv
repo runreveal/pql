@@ -1,4 +1,4 @@
-State,EventType,DamageProperty, foo
+State,EventType,DamageProperty,foo
 ATLANTIC SOUTH,Waterspout,0,1
 FLORIDA,Heavy Rain,0,1
 FLORIDA,Tornado,6200000,1
