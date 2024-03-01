@@ -48,7 +48,7 @@ const (
 	// TokenDot is a period character (".").
 	// The Value will be the empty string.
 	TokenDot
-	// TokenDot is a comma character (",").
+	// TokenComma is a comma character (",").
 	// The Value will be the empty string.
 	TokenComma
 	// TokenPlus is a single plus character ("+").
@@ -118,6 +118,14 @@ const (
 	// TokenSemi is the semicolon character (";").
 	// The Value will be the empty string.
 	TokenSemi
+
+	// TokenLet is the keyword "let".
+	// The Value will be the empty string.
+	TokenLet
+
+	// TokenBackslash is the character "\"
+	// The Value will be the empty string.
+	TokenBackslash
 
 	// TokenError is a marker for a scan error.
 	// The Value will contain the error message.
@@ -203,6 +211,11 @@ func Scan(query string) []Token {
 		case c == ']':
 			tokens = append(tokens, Token{
 				Kind: TokenRBracket,
+				Span: newSpan(start, s.pos),
+			})
+		case c == '\\':
+			tokens = append(tokens, Token{
+				Kind: TokenBackslash,
 				Span: newSpan(start, s.pos),
 			})
 		case c == '=':
@@ -341,7 +354,7 @@ func SplitStatements(source string) []string {
 	var parts []string
 	start := 0
 	for _, tok := range tokens {
-		if tok.Kind == TokenSemi {
+		if tok.Kind == TokenBackslash {
 			parts = append(parts, source[start:tok.Span.Start])
 			start = tok.Span.End
 		}
@@ -664,6 +677,10 @@ func (s *scanner) prev() {
 func (s *scanner) setPos(pos int) {
 	s.pos = pos
 	s.last = pos
+}
+
+func isLet(ident *Ident) bool {
+	return ident.Name == "let" && !ident.Quoted
 }
 
 func isAlpha(c rune) bool {

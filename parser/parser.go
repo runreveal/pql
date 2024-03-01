@@ -28,6 +28,7 @@ func Parse(query string) (*TabularExpr, error) {
 		source: query,
 		tokens: Scan(query),
 	}
+
 	expr, err := p.tabularExpr()
 	if p.pos < len(p.tokens) {
 		trailingToken := p.tokens[p.pos]
@@ -58,13 +59,29 @@ func Parse(query string) (*TabularExpr, error) {
 }
 
 func (p *parser) tabularExpr() (*TabularExpr, error) {
-	tableName, err := p.ident()
-	if err != nil {
-		return nil, err
+
+	var (
+		tableName *Ident
+		expr      = &TabularExpr{}
+	)
+	for {
+		startTok, err := p.ident()
+		if err != nil {
+			return nil, err
+		}
+		if !isLet(startTok) {
+			tableName = startTok
+			break
+		} else {
+			l, err := p.letStatement(startTok)
+			if err != nil {
+				return nil, err
+			}
+			expr.Lets = append(expr.Lets, l)
+		}
 	}
-	expr := &TabularExpr{
-		Source: &TableRef{Table: tableName},
-	}
+
+	expr.Source = &TableRef{Table: tableName}
 
 	var finalError error
 	for i := 0; ; i++ {
@@ -404,6 +421,36 @@ func (p *parser) projectOperator(pipe, keyword Token) (*ProjectOperator, error) 
 			return op, nil
 		}
 	}
+}
+
+func (p *parser) letStatement(keyword *Ident) (*LetRef, error) {
+	op := &LetRef{
+		Keyword: keyword.Span(),
+	}
+	name, err := p.ident()
+	if err != nil {
+		return op, makeErrorOpaque(err)
+	}
+	op.Name = name
+	sep, ok := p.next()
+	if !ok {
+		return op, fmt.Errorf("expected '=' followed by expression for assignment, got EOF")
+	}
+	switch sep.Kind {
+	case TokenAssign:
+		op.Assign = sep.Span
+		op.X, err = p.expr()
+		if err != nil {
+			return op, makeErrorOpaque(err)
+		}
+		sep, ok = p.next()
+		if !ok || sep.Kind != TokenSemi {
+			return op, nil
+		}
+	default:
+		return op, fmt.Errorf("expected '=' followed by expression for assignment, got EOF")
+	}
+	return op, nil
 }
 
 func (p *parser) extendOperator(pipe, keyword Token) (*ExtendOperator, error) {
