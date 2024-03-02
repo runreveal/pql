@@ -711,14 +711,15 @@ var knownFunctions struct {
 func initKnownFunctions() map[string]*functionRewrite {
 	knownFunctions.init.Do(func() {
 		knownFunctions.m = map[string]*functionRewrite{
-			"not":       {write: writeNotFunction},
-			"isnull":    {write: writeIsNullFunction, needsParens: true},
-			"isnotnull": {write: writeIsNotNullFunction, needsParens: true},
-			"strcat":    {write: writeStrcatFunction, needsParens: true},
 			"count":     {write: writeCountFunction},
 			"countif":   {write: writeCountIfFunction},
-			"iff":       {write: writeIfFunction, needsParens: true},
 			"iif":       {write: writeIfFunction, needsParens: true},
+			"iff":       {write: writeIfFunction, needsParens: true},
+			"isnotnull": {write: writeIsNotNullFunction, needsParens: true},
+			"isnull":    {write: writeIsNullFunction, needsParens: true},
+			"not":       {write: writeNotFunction},
+			"now":       {write: writeNowFunction},
+			"strcat":    {write: writeStrcatFunction, needsParens: true},
 		}
 	})
 	return knownFunctions.m
@@ -739,6 +740,21 @@ func writeNotFunction(ctx *exprContext, sb *strings.Builder, x *parser.CallExpr)
 	if err := writeExpressionMaybeParen(ctx, sb, x.Args[0]); err != nil {
 		return err
 	}
+	return nil
+}
+
+func writeNowFunction(ctx *exprContext, sb *strings.Builder, x *parser.CallExpr) error {
+	if len(x.Args) != 0 {
+		return &compileError{
+			source: ctx.source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("now()) takes a no arguments (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("CURRENT_TIMESTAMP")
 	return nil
 }
 

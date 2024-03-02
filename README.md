@@ -82,6 +82,7 @@ list will be passed through to the underlying SQL engine. This allows the usage
 of the full APIs implemented by the underlying
 
 - [`not`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/not-function)
+- [`now`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/now-function)
 - [`isnull`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/isnull-function)
   and [`isnotnull`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/isnotnull-function)
 - [`strcat`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/strcat-function)
