@@ -90,6 +90,8 @@ of the full APIs implemented by the underlying
 - [`count`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/count-aggregation-function)
 - [`countif`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/countif-aggregation-function)
 - [`tolower`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/tolower-function)
+- [`toupper`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/toupper-function)
+
 
 Column names with special characters can be escaped with backticks.
 
