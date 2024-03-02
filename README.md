@@ -89,6 +89,7 @@ of the full APIs implemented by the underlying
 - [`iff`/`iif`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/iff-function)
 - [`count`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/count-aggregation-function)
 - [`countif`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/countif-aggregation-function)
+- [`tolower`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/tolower-function)
 
 Column names with special characters can be escaped with backticks.
 

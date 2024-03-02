@@ -720,6 +720,7 @@ func initKnownFunctions() map[string]*functionRewrite {
 			"not":       {write: writeNotFunction},
 			"now":       {write: writeNowFunction},
 			"strcat":    {write: writeStrcatFunction, needsParens: true},
+			"tolower":   {write: writeToLowerFunction, needsParens: true},
 		}
 	})
 	return knownFunctions.m
@@ -875,6 +876,25 @@ func writeIfFunction(ctx *exprContext, sb *strings.Builder, x *parser.CallExpr) 
 		return err
 	}
 	sb.WriteString(" END")
+	return nil
+}
+
+func writeToLowerFunction(ctx *exprContext, sb *strings.Builder, x *parser.CallExpr) error {
+	if len(x.Args) != 1 {
+		return &compileError{
+			source: ctx.source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("tolower(x) takes a single argument (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("LOWER(")
+	if err := writeExpression(ctx, sb, x.Args[0]); err != nil {
+		return err
+	}
+	sb.WriteString(")")
 	return nil
 }
 
