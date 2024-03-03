@@ -427,20 +427,26 @@ func (p *parser) extendOperator(pipe, keyword Token) (*ExtendOperator, error) {
 		if !ok {
 			return op, fmt.Errorf("expected '=' followed by expression for assignment, got EOF")
 		}
-		switch sep.Kind {
-		case TokenAssign:
-			col.Assign = sep.Span
-			col.X, err = p.expr()
-			if err != nil {
-				return op, makeErrorOpaque(err)
-			}
-			sep, ok = p.next()
-			if !ok || sep.Kind != TokenComma {
-				return op, nil
-			}
-		default:
-			p.prev()
+
+		// Unlike in project, extend must be an assignment after
+		// the column name token. And afterwards the token must be
+		// a comma as a separator
+		if sep.Kind != TokenAssign {
+			return op, makeErrorOpaque(err)
+		}
+
+		col.Assign = sep.Span
+		col.X, err = p.expr()
+		if err != nil {
+			return op, makeErrorOpaque(err)
+		}
+		sep, ok = p.next()
+		if !ok {
 			return op, nil
+		}
+		if sep.Kind != TokenComma {
+			return op, fmt.Errorf("expected '=' followed by expression for assignment, got EOF")
+
 		}
 	}
 }
