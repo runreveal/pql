@@ -10,7 +10,7 @@ This Go library compiles a pipelined-based query language
 into SQL.
 It has been specifically tested to work with the [Clickhouse SQL dialect][],
 but the generated SQL is intentionally database agnostic. This repository
-contains a the Go library, and a CLI to invoke the library.
+contains a Go library, and a CLI to invoke the library.
 
 For example, the following expression:
 
@@ -77,9 +77,9 @@ documentation is representative of the current pql api.
 - [`top`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/top-operator)
 - [`where`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/where-operator)
 
-The following scalar functions implemented within pql. Functions not in this
+The following scalar functions are implemented within pql. Functions not in this
 list will be passed through to the underlying SQL engine. This allows the usage
-of the full APIs implemented by the underlying
+of the full APIs implemented by the underlying engine.
 
 - [`not`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/not-function)
 - [`isnull`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/isnull-function)
@@ -92,7 +92,7 @@ of the full APIs implemented by the underlying
 Column names with special characters can be escaped with backticks.
 
 ## Get involved
-- Join our [discord](https://discord.gg/XWKF5s5g)
+- Join our [discord](https://discord.gg/PbeXzrWP)
 - Contribute a [scalar function](./CONTRIBUTING.md)
 
 ## License
