@@ -1105,6 +1105,34 @@ var parserTests = []struct {
 		},
 	},
 	{
+		name:  "ProjectError",
+		query: "StormEvents | project EventId State EventType",
+		err:   true,
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "StormEvents",
+					NameSpan: newSpan(0, 11),
+				},
+			},
+			Operators: []TabularOperator{
+				&ProjectOperator{
+					Pipe:    newSpan(12, 13),
+					Keyword: newSpan(14, 21),
+					Cols: []*ProjectColumn{
+						{
+							Name: &Ident{
+								Name:     "EventId",
+								NameSpan: newSpan(22, 29),
+							},
+							Assign: nullSpan(),
+						},
+					},
+				},
+			},
+		},
+	},
+	{
 		name:  "ProjectExpr",
 		query: "StormEvents | project TotalInjuries = InjuriesDirect + InjuriesIndirect",
 		want: &TabularExpr{
