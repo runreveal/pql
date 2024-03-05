@@ -1106,7 +1106,7 @@ var parserTests = []struct {
 	},
 	{
 		name:  "ProjectError",
-		query: "StormEvents | project EventId State EventType",
+		query: "StormEvents | project EventId=1 State",
 		err:   true,
 		want: &TabularExpr{
 			Source: &TableRef{
@@ -1125,7 +1125,15 @@ var parserTests = []struct {
 								Name:     "EventId",
 								NameSpan: newSpan(22, 29),
 							},
-							Assign: nullSpan(),
+							Assign: Span{
+								Start: 29,
+								End:   30,
+							},
+							X: &BasicLit{
+								Kind:      TokenNumber,
+								Value:     "1",
+								ValueSpan: newSpan(30, 31),
+							},
 						},
 					},
 				},
