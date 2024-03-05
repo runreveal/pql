@@ -1183,6 +1183,42 @@ var parserTests = []struct {
 		},
 	},
 	{
+		name:  "ExtendError",
+		query: "StormEvents | extend FooFooF=1 State",
+		err:   true,
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "StormEvents",
+					NameSpan: newSpan(0, 11),
+				},
+			},
+			Operators: []TabularOperator{
+				&ExtendOperator{
+					Pipe:    newSpan(12, 13),
+					Keyword: newSpan(14, 20),
+					Cols: []*ExtendColumn{
+						{
+							Name: &Ident{
+								Name:     "FooFooF",
+								NameSpan: newSpan(21, 28),
+							},
+							Assign: Span{
+								Start: 28,
+								End:   29,
+							},
+							X: &BasicLit{
+								Kind:      TokenNumber,
+								Value:     "1",
+								ValueSpan: newSpan(29, 30),
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+	{
 		name:  "UniqueCombination",
 		query: "StormEvents | summarize by State, EventType",
 		want: &TabularExpr{
