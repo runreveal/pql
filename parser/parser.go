@@ -396,8 +396,11 @@ func (p *parser) projectOperator(pipe, keyword Token) (*ProjectOperator, error) 
 				return op, makeErrorOpaque(err)
 			}
 			sep, ok = p.next()
-			if !ok || sep.Kind != TokenComma {
+			if !ok {
 				return op, nil
+			}
+			if sep.Kind != TokenComma {
+				return op, fmt.Errorf("expected ',' or EOF, got %s", formatToken(p.source, sep))
 			}
 		default:
 			p.prev()
