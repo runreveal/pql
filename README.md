@@ -82,12 +82,16 @@ list will be passed through to the underlying SQL engine. This allows the usage
 of the full APIs implemented by the underlying engine.
 
 - [`not`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/not-function)
+- [`now`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/now-function)
 - [`isnull`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/isnull-function)
   and [`isnotnull`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/isnotnull-function)
 - [`strcat`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/strcat-function)
 - [`iff`/`iif`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/iff-function)
 - [`count`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/count-aggregation-function)
 - [`countif`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/countif-aggregation-function)
+- [`tolower`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/tolower-function)
+- [`toupper`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/toupper-function)
+
 
 Column names with special characters can be escaped with backticks.
 

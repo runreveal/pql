@@ -711,14 +711,17 @@ var knownFunctions struct {
 func initKnownFunctions() map[string]*functionRewrite {
 	knownFunctions.init.Do(func() {
 		knownFunctions.m = map[string]*functionRewrite{
-			"not":       {write: writeNotFunction},
-			"isnull":    {write: writeIsNullFunction, needsParens: true},
-			"isnotnull": {write: writeIsNotNullFunction, needsParens: true},
-			"strcat":    {write: writeStrcatFunction, needsParens: true},
 			"count":     {write: writeCountFunction},
 			"countif":   {write: writeCountIfFunction},
-			"iff":       {write: writeIfFunction, needsParens: true},
 			"iif":       {write: writeIfFunction, needsParens: true},
+			"iff":       {write: writeIfFunction, needsParens: true},
+			"isnotnull": {write: writeIsNotNullFunction, needsParens: true},
+			"isnull":    {write: writeIsNullFunction, needsParens: true},
+			"not":       {write: writeNotFunction},
+			"now":       {write: writeNowFunction},
+			"strcat":    {write: writeStrcatFunction, needsParens: true},
+			"tolower":   {write: writeToLowerFunction, needsParens: true},
+			"toupper":   {write: writeToUpperFunction, needsParens: true},
 		}
 	})
 	return knownFunctions.m
@@ -739,6 +742,21 @@ func writeNotFunction(ctx *exprContext, sb *strings.Builder, x *parser.CallExpr)
 	if err := writeExpressionMaybeParen(ctx, sb, x.Args[0]); err != nil {
 		return err
 	}
+	return nil
+}
+
+func writeNowFunction(ctx *exprContext, sb *strings.Builder, x *parser.CallExpr) error {
+	if len(x.Args) != 0 {
+		return &compileError{
+			source: ctx.source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("now()) takes a no arguments (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("CURRENT_TIMESTAMP")
 	return nil
 }
 
@@ -859,6 +877,44 @@ func writeIfFunction(ctx *exprContext, sb *strings.Builder, x *parser.CallExpr) 
 		return err
 	}
 	sb.WriteString(" END")
+	return nil
+}
+
+func writeToLowerFunction(ctx *exprContext, sb *strings.Builder, x *parser.CallExpr) error {
+	if len(x.Args) != 1 {
+		return &compileError{
+			source: ctx.source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("tolower(x) takes a single argument (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("LOWER(")
+	if err := writeExpression(ctx, sb, x.Args[0]); err != nil {
+		return err
+	}
+	sb.WriteString(")")
+	return nil
+}
+
+func writeToUpperFunction(ctx *exprContext, sb *strings.Builder, x *parser.CallExpr) error {
+	if len(x.Args) != 1 {
+		return &compileError{
+			source: ctx.source,
+			span: parser.Span{
+				Start: x.Lparen.End,
+				End:   x.Rparen.Start,
+			},
+			err: fmt.Errorf("toupper(x) takes a single argument (got %d)", len(x.Args)),
+		}
+	}
+	sb.WriteString("UPPER(")
+	if err := writeExpression(ctx, sb, x.Args[0]); err != nil {
+		return err
+	}
+	sb.WriteString(")")
 	return nil
 }
 
