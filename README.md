@@ -96,7 +96,7 @@ of the full APIs implemented by the underlying engine.
 Column names with special characters can be escaped with backticks.
 
 ## Get involved
-- Join our [discord](https://discord.gg/PbeXzrWP)
+- Join our [discord](https://discord.gg/NZS9QtCJXt)
 - Contribute a [scalar function](./CONTRIBUTING.md)
 
 ## License
