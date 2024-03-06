@@ -74,6 +74,7 @@ func (id *QualifiedIdent) expression() {}
 
 // TabularExpr is a query expression that produces a table.
 type TabularExpr struct {
+	Lets      []LetStatement
 	Source    TabularDataSource
 	Operators []TabularOperator
 }
@@ -91,6 +92,32 @@ func (x *TabularExpr) Span() Span {
 type TabularDataSource interface {
 	Node
 	tabularDataSource()
+}
+
+// A LetRef node refers to a specific Let Statement.
+// It implements [LetStatement].
+type LetRef struct {
+	Keyword Span
+	Name    *Ident
+	Assign  Span
+	X       Expr
+}
+
+func (ref *LetRef) letStatement() {}
+
+func (ref *LetRef) Span() Span {
+	if ref == nil {
+		return nullSpan()
+	}
+	return unionSpans(ref.Keyword, ref.Name.Span(), ref.Assign, nodeSpan(ref.X))
+}
+
+// LetStatement is the interface implemented by the Let statement node types
+// that can be used as the let statement of a [LetStatement].
+// At the moment, this can only be a [LetRef].
+type LetStatement interface {
+	Node
+	letStatement()
 }
 
 // A TableRef node refers to a specific table.
