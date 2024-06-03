@@ -14,7 +14,24 @@ import (
 
 // Compile converts the given Pipeline Query Language statement
 // into the equivalent SQL.
+// This is equivalent to new(CompileOptions).Compile(source).
 func Compile(source string) (string, error) {
+	return ((*CompileOptions)(nil)).Compile(source)
+}
+
+// CompileOptions a set of optional parameters
+// that configure compilation.
+// nil is treated the same as the zero value.
+type CompileOptions struct {
+	// Parameters is a map of identifiers to SQL snippets to substitute in.
+	// For example, a "foo": "$1" entry would replace unquoted "foo" identifiers
+	// with "$1" in the resulting SQL.
+	Parameters map[string]string
+}
+
+// Compile converts the given Pipeline Query Language statement
+// into the equivalent SQL.
+func (opts *CompileOptions) Compile(source string) (string, error) {
 	expr, err := parser.Parse(source)
 	if err != nil {
 		return "", err
@@ -30,6 +47,9 @@ func Compile(source string) (string, error) {
 	query := subqueries[len(subqueries)-1]
 	ctx := &exprContext{
 		source: source,
+	}
+	if opts != nil {
+		ctx.params = opts.Parameters
 	}
 	if len(ctes) > 0 {
 		sb.WriteString("WITH ")
@@ -487,6 +507,7 @@ const (
 
 type exprContext struct {
 	source string
+	params map[string]string
 	mode   exprMode
 }
 
@@ -506,6 +527,10 @@ func writeExpression(ctx *exprContext, sb *strings.Builder, x parser.Expr) error
 		if len(x.Parts) == 1 {
 			part := x.Parts[0]
 			if !part.Quoted {
+				if sql, ok := ctx.params[part.Name]; ok {
+					sb.WriteString(sql)
+					return nil
+				}
 				if sql, ok := builtinIdentifiers[part.Name]; ok {
 					sb.WriteString(sql)
 					return nil

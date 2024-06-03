@@ -1,0 +1,8 @@
+{
+  "parameters": {
+    "desiredKind": {
+      "clickhouse": "{desiredKind: Int32}",
+      "value": "1",
+    },
+  },
+}
