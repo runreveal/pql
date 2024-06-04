@@ -115,6 +115,39 @@ type TabularOperator interface {
 	tabularOperator()
 }
 
+// UnknownTabularOperator is a placeholder for an unrecognized [TabularOperator].
+// [Parse] will not return such an operator without an error.
+type UnknownTabularOperator struct {
+	Pipe   Span
+	Tokens []Token
+}
+
+func (op *UnknownTabularOperator) tabularOperator() {}
+
+// Name returns the operator's name
+// or nil if a name could not be extracted.
+func (op *UnknownTabularOperator) Name() *Ident {
+	if op == nil || len(op.Tokens) == 0 || op.Tokens[0].Kind != TokenIdentifier {
+		return nil
+	}
+	return &Ident{
+		Name:     op.Tokens[0].Value,
+		NameSpan: op.Tokens[0].Span,
+	}
+}
+
+func (op *UnknownTabularOperator) Span() Span {
+	if op == nil {
+		return nullSpan()
+	}
+	spans := make([]Span, 1, 1+len(op.Tokens))
+	spans[0] = op.Pipe
+	for _, tok := range op.Tokens {
+		spans = append(spans, tok.Span)
+	}
+	return unionSpans(spans...)
+}
+
 // CountOperator represents a `| count` operator in a [TabularExpr].
 // It implements [TabularOperator].
 type CountOperator struct {
@@ -655,6 +688,8 @@ func Walk(n Node, visit func(n Node) bool) {
 			if visit(n) {
 				stack = append(stack, n.Name)
 			}
+		case *UnknownTabularOperator:
+			visit(n)
 		case *BinaryExpr:
 			if visit(n) {
 				stack = append(stack, n.Y)
