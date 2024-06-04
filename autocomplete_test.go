@@ -368,11 +368,35 @@ func TestSuggestCompletions(t *testing.T) {
 				},
 			},
 			sourceBefore: "foo | whe",
-			sourceAfter:  "",
 			want: []*Completion{
 				{
 					Label:  "where",
 					Insert: "re",
+				},
+			},
+		},
+		{
+			name: "WhereExpression",
+			context: &AnalysisContext{
+				Tables: map[string]*AnalysisTable{
+					"foo": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+							{Name: "name"},
+						},
+					},
+					"bar": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+						},
+					},
+				},
+			},
+			sourceBefore: "foo | where n",
+			want: []*Completion{
+				{
+					Label:  "name",
+					Insert: "ame",
 				},
 			},
 		},

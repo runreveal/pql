@@ -59,11 +59,10 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 		return completeOperators("")
 	}
 
+	columns := ctx.determineColumnsInScope(expr.Source, expr.Operators[:i])
+
 	switch op := expr.Operators[i].(type) {
 	case *parser.UnknownTabularOperator:
-		if pos <= op.Pipe.Start {
-			return completeOperators("")
-		}
 		if pos == op.Pipe.End {
 			return completeOperators("|")
 		}
@@ -74,6 +73,15 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 			return completeOperators("| ")
 		}
 		return nil
+	case *parser.WhereOperator:
+		if pos <= op.Keyword.Start {
+			return completeOperators("|")
+		}
+		if pos <= op.Keyword.End {
+			return nil
+		}
+		prefix := completionPrefix(source, tokens, pos)
+		return completeColumnNames(prefix, columns)
 	default:
 		return nil
 	}
@@ -94,6 +102,62 @@ var sortedOperatorNames = []string{
 	"where",
 }
 
+func (ctx *AnalysisContext) determineColumnsInScope(source parser.TabularDataSource, ops []parser.TabularOperator) []*AnalysisColumn {
+	var columns []*AnalysisColumn
+	if source, ok := source.(*parser.TableRef); ok {
+		columns = ctx.Tables[source.Table.Name].Columns
+	}
+	for _, op := range ops {
+		switch op := op.(type) {
+		case *parser.CountOperator:
+			columns = []*AnalysisColumn{{Name: "count()"}}
+		case *parser.ProjectOperator:
+			columns = make([]*AnalysisColumn, 0, len(op.Cols))
+			for _, col := range op.Cols {
+				columns = append(columns, &AnalysisColumn{
+					Name: col.Name.Name,
+				})
+			}
+		case *parser.ExtendOperator:
+			columns = slices.Clip(columns)
+			for _, col := range op.Cols {
+				columns = append(columns, &AnalysisColumn{
+					Name: col.Name.Name,
+				})
+			}
+		case *parser.SummarizeOperator:
+			columns = make([]*AnalysisColumn, 0, len(op.Cols)+len(op.GroupBy))
+			for _, col := range op.Cols {
+				columns = append(columns, &AnalysisColumn{
+					Name: col.Name.Name,
+				})
+			}
+			for _, col := range op.GroupBy {
+				columns = append(columns, &AnalysisColumn{
+					Name: col.Name.Name,
+				})
+			}
+		case *parser.JoinOperator:
+			columns = slices.Clip(columns)
+			columns = append(columns, ctx.determineColumnsInScope(op.Right.Source, op.Right.Operators)...)
+		}
+	}
+	return columns
+}
+
+func completeColumnNames(prefix string, columns []*AnalysisColumn) []*Completion {
+	result := make([]*Completion, 0, len(columns))
+	for _, col := range columns {
+		if strings.HasPrefix(col.Name, prefix) {
+			result = append(result, &Completion{
+				Label:  col.Name,
+				Insert: col.Name[len(prefix):],
+			})
+		}
+	}
+	return result
+}
+
 func (ctx *AnalysisContext) completeTableNames(prefix string) []*Completion {
 	result := make([]*Completion, 0, len(ctx.Tables))
 	for tableName := range ctx.Tables {
@@ -104,6 +168,9 @@ func (ctx *AnalysisContext) completeTableNames(prefix string) []*Completion {
 			})
 		}
 	}
+	slices.SortFunc(result, func(a, b *Completion) int {
+		return cmp.Compare(a.Label, b.Label)
+	})
 	return result
 }
 
