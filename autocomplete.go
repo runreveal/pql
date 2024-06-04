@@ -6,6 +6,7 @@ package pql
 import (
 	"cmp"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/runreveal/pql/parser"
@@ -24,7 +25,8 @@ type AnalysisColumn struct {
 }
 
 type Completion struct {
-	Identifier string
+	Label  string
+	Insert string
 }
 
 func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span) []*Completion {
@@ -35,34 +37,99 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 	expr, _ := parser.Parse(source)
 	if expr == nil {
 		prefix := completionPrefix(source, tokens, pos)
-		result := make([]*Completion, 0, len(ctx.Tables))
-		for tableName := range ctx.Tables {
-			if strings.HasPrefix(tableName, prefix) {
-				result = append(result, &Completion{
-					Identifier: tableName,
-				})
-			}
-		}
-		return result
+		return ctx.completeTableNames(prefix)
 	}
 
 	if sourceSpan := expr.Source.Span(); posSpan.Overlaps(sourceSpan) || pos < sourceSpan.Start {
 		// Assume that this is a table name.
 		prefix := completionPrefix(source, tokens, pos)
-		result := make([]*Completion, 0, len(ctx.Tables))
-		for tableName := range ctx.Tables {
-			if strings.HasPrefix(tableName, prefix) {
-				result = append(result, &Completion{
-					Identifier: tableName,
-				})
-			}
-		}
-		return result
+		return ctx.completeTableNames(prefix)
 	}
 
-	// TODO(now): More.
+	// Find the operator that this cursor is associated with.
+	i := sort.Search(len(expr.Operators), func(i int) bool {
+		return expr.Operators[i].Span().Start >= pos
+	})
+	// Binary search will find the operator that follows the position.
+	// Since the first character is a pipe,
+	// we want to associate an exact match with the previous operator.
+	i--
+	if i < 0 {
+		// Before the first operator.
+		return completeOperators("")
+	}
 
-	return nil
+	switch op := expr.Operators[i].(type) {
+	case *parser.UnknownTabularOperator:
+		if pos <= op.Pipe.Start {
+			return completeOperators("")
+		}
+		if pos == op.Pipe.End {
+			return completeOperators("|")
+		}
+		if name := op.Name(); name != nil && name.NameSpan.Overlaps(posSpan) {
+			return completeOperators("| " + completionPrefix(source, tokens, pos))
+		}
+		if len(op.Tokens) == 0 || pos < op.Tokens[0].Span.Start {
+			return completeOperators("| ")
+		}
+		return nil
+	default:
+		return nil
+	}
+}
+
+var sortedOperatorNames = []string{
+	"as",
+	"count",
+	"extend",
+	"join",
+	"limit",
+	"order",
+	"project",
+	"sort",
+	"summarize",
+	"take",
+	"top",
+	"where",
+}
+
+func (ctx *AnalysisContext) completeTableNames(prefix string) []*Completion {
+	result := make([]*Completion, 0, len(ctx.Tables))
+	for tableName := range ctx.Tables {
+		if strings.HasPrefix(tableName, prefix) {
+			result = append(result, &Completion{
+				Label:  tableName,
+				Insert: tableName[len(prefix):],
+			})
+		}
+	}
+	return result
+}
+
+func completeOperators(prefix string) []*Completion {
+	result := make([]*Completion, 0, len(sortedOperatorNames))
+	var namePrefix string
+	if rest, ok := strings.CutPrefix(prefix, "|"); ok {
+		if rest, ok = strings.CutPrefix(rest, " "); ok {
+			namePrefix = rest
+		}
+	}
+
+	for _, name := range sortedOperatorNames {
+		if !strings.HasPrefix(name, namePrefix) {
+			continue
+		}
+		c := &Completion{
+			Label:  name,
+			Insert: ("| " + name)[len(prefix):],
+		}
+		if name == "order" || name == "sort" {
+			c.Insert += " by"
+		}
+		result = append(result, c)
+	}
+	return result
 }
 
 func completionPrefix(source string, tokens []parser.Token, pos int) string {
