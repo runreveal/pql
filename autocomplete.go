@@ -46,7 +46,7 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 		return result
 	}
 
-	if posSpan.Overlaps(expr.Source.Span()) {
+	if sourceSpan := expr.Source.Span(); posSpan.Overlaps(sourceSpan) || pos < sourceSpan.Start {
 		// Assume that this is a table name.
 		prefix := completionPrefix(source, tokens, pos)
 		result := make([]*Completion, 0, len(ctx.Tables))
@@ -73,7 +73,7 @@ func completionPrefix(source string, tokens []parser.Token, pos int) string {
 		return cmp.Compare(tok.Span.Start, pos)
 	})
 	i = min(i, len(tokens)-1)
-	if tokens[i].Span.End < pos || !isCompletableToken(tokens[i].Kind) {
+	if !tokens[i].Span.Overlaps(parser.Span{Start: pos, End: pos}) || !isCompletableToken(tokens[i].Kind) {
 		// Cursor is not adjacent to token. Assume there's whitespace.
 		return ""
 	}

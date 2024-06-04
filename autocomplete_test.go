@@ -92,6 +92,54 @@ func TestSuggestCompletions(t *testing.T) {
 				{Identifier: "bar"},
 			},
 		},
+		{
+			name: "BeforeCompleteExpr",
+			context: &AnalysisContext{
+				Tables: map[string]*AnalysisTable{
+					"foo": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+							{Name: "n"},
+						},
+					},
+					"bar": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+						},
+					},
+				},
+			},
+			sourceBefore: "",
+			sourceAfter:  "o | count",
+			want: []*Completion{
+				{Identifier: "foo"},
+				{Identifier: "bar"},
+			},
+		},
+		{
+			name: "BeforeSpaceThenCompleteExpr",
+			context: &AnalysisContext{
+				Tables: map[string]*AnalysisTable{
+					"foo": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+							{Name: "n"},
+						},
+					},
+					"bar": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+						},
+					},
+				},
+			},
+			sourceBefore: "",
+			sourceAfter:  " x | count",
+			want: []*Completion{
+				{Identifier: "foo"},
+				{Identifier: "bar"},
+			},
+		},
 	}
 
 	for _, test := range tests {
