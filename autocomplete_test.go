@@ -400,6 +400,56 @@ func TestSuggestCompletions(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "JoinExpression",
+			context: &AnalysisContext{
+				Tables: map[string]*AnalysisTable{
+					"foo": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+							{Name: "name"},
+						},
+					},
+					"bar": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+						},
+					},
+				},
+			},
+			sourceBefore: "foo | join (b",
+			want: []*Completion{
+				{
+					Label:  "bar",
+					Insert: "ar",
+				},
+			},
+		},
+		{
+			name: "JoinExpressionOn",
+			context: &AnalysisContext{
+				Tables: map[string]*AnalysisTable{
+					"foo": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+							{Name: "name"},
+						},
+					},
+					"bar": {
+						Columns: []*AnalysisColumn{
+							{Name: "id"},
+						},
+					},
+				},
+			},
+			sourceBefore: "foo | join (bar) on i",
+			want: []*Completion{
+				{
+					Label:  "id",
+					Insert: "d",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

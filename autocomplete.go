@@ -31,18 +31,21 @@ type Completion struct {
 
 func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span) []*Completion {
 	pos := cursor.End
-	posSpan := parser.Span{Start: pos, End: pos}
 
 	tokens := parser.Scan(source)
 	expr, _ := parser.Parse(source)
+	prefix := completionPrefix(source, tokens, pos)
+	return ctx.suggestCompletions(expr, prefix, cursor.End)
+}
+
+func (ctx *AnalysisContext) suggestCompletions(expr *parser.TabularExpr, prefix string, pos int) []*Completion {
+	posSpan := parser.Span{Start: pos, End: pos}
 	if expr == nil {
-		prefix := completionPrefix(source, tokens, pos)
 		return ctx.completeTableNames(prefix)
 	}
 
 	if sourceSpan := expr.Source.Span(); posSpan.Overlaps(sourceSpan) || pos < sourceSpan.Start {
 		// Assume that this is a table name.
-		prefix := completionPrefix(source, tokens, pos)
 		return ctx.completeTableNames(prefix)
 	}
 
@@ -67,7 +70,7 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 			return completeOperators("|")
 		}
 		if name := op.Name(); name != nil && name.NameSpan.Overlaps(posSpan) {
-			return completeOperators("| " + completionPrefix(source, tokens, pos))
+			return completeOperators("| " + prefix)
 		}
 		if len(op.Tokens) == 0 || pos < op.Tokens[0].Span.Start {
 			return completeOperators("| ")
@@ -80,8 +83,61 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 		if pos <= op.Keyword.End {
 			return nil
 		}
-		prefix := completionPrefix(source, tokens, pos)
 		return completeColumnNames(prefix, columns)
+	case *parser.SortOperator:
+		if pos <= op.Keyword.Start {
+			return completeOperators("|")
+		}
+		if pos <= op.Keyword.End {
+			return nil
+		}
+		return completeColumnNames(prefix, columns)
+	case *parser.TopOperator:
+		if pos <= op.Keyword.Start {
+			return completeOperators("|")
+		}
+		if !op.By.IsValid() || pos <= op.By.End {
+			return nil
+		}
+		return completeColumnNames(prefix, columns)
+	case *parser.ProjectOperator:
+		if pos <= op.Keyword.Start {
+			return completeOperators("|")
+		}
+		if pos <= op.Keyword.End {
+			return nil
+		}
+		return completeColumnNames(prefix, columns)
+	case *parser.ExtendOperator:
+		if pos <= op.Keyword.Start {
+			return completeOperators("|")
+		}
+		if pos <= op.Keyword.End {
+			return nil
+		}
+		return completeColumnNames(prefix, columns)
+	case *parser.SummarizeOperator:
+		if pos <= op.Keyword.Start {
+			return completeOperators("|")
+		}
+		if pos <= op.Keyword.End {
+			return nil
+		}
+		return completeColumnNames(prefix, columns)
+	case *parser.JoinOperator:
+		if pos <= op.Keyword.Start {
+			return completeOperators("|")
+		}
+		if pos <= op.Keyword.End {
+			return nil
+		}
+		if op.Lparen.IsValid() && pos >= op.Lparen.End && (!op.Rparen.IsValid() || pos <= op.Rparen.Start) {
+			return ctx.suggestCompletions(op.Right, prefix, pos)
+		}
+		if op.On.IsValid() && pos > op.On.End {
+			return completeColumnNames(prefix, columns)
+		}
+		return nil
 	default:
 		return nil
 	}
