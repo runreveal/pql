@@ -324,17 +324,21 @@ func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 		sb.WriteString("SELECT *")
 		for _, col := range op.Cols {
 			sb.WriteString(", ")
+			if err := writeExpression(ctx, sb, col.X); err != nil {
+				return err
+			}
 			if col.X == nil {
 				if err := writeExpression(ctx, sb, col.Name.AsQualified()); err != nil {
 					return err
 				}
-			} else {
-				if err := writeExpression(ctx, sb, col.X); err != nil {
-					return err
-				}
 			}
 			sb.WriteString(" AS ")
-			quoteIdentifier(sb, col.Name.Name)
+			if col.Name != nil {
+				quoteIdentifier(sb, col.Name.Name)
+			} else {
+				span := col.X.Span()
+				quoteIdentifier(sb, ctx.source[span.Start:span.End])
+			}
 		}
 		sb.WriteString(" FROM ")
 		sb.WriteString(sub.sourceSQL)
