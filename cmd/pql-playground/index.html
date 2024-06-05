@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>pql Autocomplete Playground</title>
+    <script
+      type="module"
+      src="https://unpkg.com/@hotwired/stimulus/dist/stimulus.js"
+    ></script>
+    <script type="module" src="/app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-200">
+    <div
+      class="p-16"
+      data-controller="analysis"
+      data-analysis-compile-href-value="/compile"
+      data-analysis-suggest-href-value="/suggest"
+    >
+      <form
+        data-action="analysis#compile:prevent keydown.ctrl+enter->analysis#compile"
+        class="mx-auto my-8 grid grid-cols-[2fr_1fr] max-w-[90ch] gap-x-4 gap-y-8"
+      >
+        <div>
+          <textarea
+            name="source"
+            rows="20"
+            class="p-2 border border-slate-400 font-mono w-full bg-slate-50"
+            autofocus
+            data-analysis-target="editor"
+            data-action="input->analysis#clear selectionchange->analysis#clear keydown.ctrl+space->analysis#suggest keydown.esc->analysis#clear"
+          ></textarea>
+        </div>
+
+        <div>
+          <ul
+            class="bg-slate-700 text-slate-100"
+            data-analysis-target="list"
+            data-action="keydown.esc->analysis#clear"
+            hidden
+          ></ul>
+        </div>
+
+        <div class="text-center">
+          <input
+            type="submit"
+            value="Compile"
+            class="inline-block px-8 py-4 text-lg font-bold bg-blue-600 text-white rounded-md outline-none focus:ring focus:ring-orange-400"
+          />
+        </div>
+      </form>
+
+      <div class="mx-auto my-16 border-t border-slate-400 p-8 max-w-[80ch]" data-analysis-target="output" hidden></div>
+    </div>
+  </body>
+</html>
