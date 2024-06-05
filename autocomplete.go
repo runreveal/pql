@@ -12,23 +12,35 @@ import (
 	"github.com/runreveal/pql/parser"
 )
 
+// AnalysisContext is information about the eventual execution environment
+// passed in to assist in analysis tasks.
 type AnalysisContext struct {
 	Tables map[string]*AnalysisTable
 }
 
+// AnalysisTable is a table known to an [AnalysisContext].
 type AnalysisTable struct {
 	Columns []*AnalysisColumn
 }
 
+// AnalysisColumn is a column known to an [AnalysisTable].
 type AnalysisColumn struct {
 	Name string
 }
 
+// Completion is a single completion suggestion
+// returned by [AnalysisContext.SuggestCompletions].
 type Completion struct {
-	Label  string
+	// Label is the label that should be displayed for the completion.
+	// It represents the full string that is being completed.
+	Label string
+	// Insert is the text that should be inserted after the cursor
+	// to perform the completion.
 	Insert string
 }
 
+// SuggestCompletions suggests possible snippets to insert
+// given a partial pql statement and a selected range.
 func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span) []*Completion {
 	pos := cursor.End
 
@@ -161,7 +173,9 @@ var sortedOperatorNames = []string{
 func (ctx *AnalysisContext) determineColumnsInScope(source parser.TabularDataSource, ops []parser.TabularOperator) []*AnalysisColumn {
 	var columns []*AnalysisColumn
 	if source, ok := source.(*parser.TableRef); ok {
-		columns = ctx.Tables[source.Table.Name].Columns
+		if tab := ctx.Tables[source.Table.Name]; tab != nil {
+			columns = tab.Columns
+		}
 	}
 	for _, op := range ops {
 		switch op := op.(type) {
