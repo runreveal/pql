@@ -6,7 +6,6 @@ package pql
 import (
 	"cmp"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/runreveal/pql/parser"
@@ -62,13 +61,7 @@ func (ctx *AnalysisContext) suggestCompletions(expr *parser.TabularExpr, prefix 
 	}
 
 	// Find the operator that this cursor is associated with.
-	i := sort.Search(len(expr.Operators), func(i int) bool {
-		return expr.Operators[i].Span().Start >= pos
-	})
-	// Binary search will find the operator that follows the position.
-	// Since the first character is a pipe,
-	// we want to associate an exact match with the previous operator.
-	i--
+	i := spanBefore(expr.Operators, pos, parser.TabularOperator.Span)
 	if i < 0 {
 		// Before the first operator.
 		return completeOperators("")
@@ -273,10 +266,12 @@ func completionPrefix(source string, tokens []parser.Token, pos int) string {
 	if len(tokens) == 0 {
 		return ""
 	}
-	i, _ := slices.BinarySearchFunc(tokens, pos, func(tok parser.Token, pos int) int {
-		return cmp.Compare(tok.Span.Start, pos)
+	i := spanBefore(tokens, pos, func(tok parser.Token) parser.Span {
+		return tok.Span
 	})
-	i = min(i, len(tokens)-1)
+	if i < 0 {
+		return ""
+	}
 	if !tokens[i].Span.Overlaps(parser.Span{Start: pos, End: pos}) || !isCompletableToken(tokens[i].Kind) {
 		// Cursor is not adjacent to token. Assume there's whitespace.
 		return ""
@@ -287,6 +282,19 @@ func completionPrefix(source string, tokens []parser.Token, pos int) string {
 		start += len("`")
 	}
 	return source[start:pos]
+}
+
+// spanBefore finds the first span in a sorted slice
+// that starts before the given position.
+// The span function is used to obtain the span of each element in the slice.
+// If the position occurs before any spans,
+// spanBefore returns -1.
+func spanBefore[S ~[]E, E any](x S, pos int, span func(E) parser.Span) int {
+	i, _ := slices.BinarySearchFunc(x, pos, func(elem E, pos int) int {
+		return cmp.Compare(span(elem).Start, pos)
+	})
+	// Binary search will find the span that follows the position.
+	return i - 1
 }
 
 func isCompletableToken(kind parser.TokenKind) bool {

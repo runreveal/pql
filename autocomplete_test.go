@@ -450,6 +450,27 @@ func TestSuggestCompletions(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Project",
+			context: &AnalysisContext{
+				Tables: map[string]*AnalysisTable{
+					"People": {
+						Columns: []*AnalysisColumn{
+							{Name: "FirstName"},
+							{Name: "LastName"},
+						},
+					},
+				},
+			},
+			sourceBefore: "People\n| project F",
+			sourceAfter:  ", LastName",
+			want: []*Completion{
+				{
+					Label:  "FirstName",
+					Insert: "irstName",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

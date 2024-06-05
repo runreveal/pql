@@ -1895,6 +1895,25 @@ var parserTests = []struct {
 		},
 		err: true,
 	},
+	{
+		name:  "PartialProject",
+		query: "People | project , LastName",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "People",
+					NameSpan: newSpan(0, 6),
+				},
+			},
+			Operators: []TabularOperator{
+				&ProjectOperator{
+					Pipe:    newSpan(7, 8),
+					Keyword: newSpan(9, 16),
+				},
+			},
+		},
+		err: true,
+	},
 }
 
 func TestParse(t *testing.T) {
