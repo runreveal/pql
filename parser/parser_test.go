@@ -20,7 +20,6 @@ var parserTests = []struct {
 		name:  "Empty",
 		query: "",
 		want:  nil,
-		err:   true,
 	},
 	{
 		name:  "BadToken",

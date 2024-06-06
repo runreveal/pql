@@ -51,6 +51,9 @@ func Compile(source string) (string, error) {
 			}
 		}
 	}
+	if expr == nil {
+		return "", fmt.Errorf("missing tabular queries")
+	}
 
 	subqueries, err := splitQueries(nil, source, expr)
 	if err != nil {

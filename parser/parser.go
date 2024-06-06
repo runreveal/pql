@@ -30,7 +30,6 @@ func Parse(query string) ([]Statement, error) {
 	}
 	var result []Statement
 	var resultError error
-	hasTabularExpr := false
 	for {
 		stmtParser := p.splitSemi()
 
@@ -53,13 +52,27 @@ func Parse(query string) ([]Statement, error) {
 			},
 		)
 
-		// We're okay with empty statements, we just ignore them.
-		if !isNotFound(err) {
+		if isNotFound(err) {
+			// We're okay with empty statements, we just ignore them.
+			if stmtParser.pos < len(stmtParser.tokens) {
+				trailingToken := stmtParser.tokens[stmtParser.pos]
+				if trailingToken.Kind == TokenError {
+					resultError = joinErrors(err, &parseError{
+						source: p.source,
+						span:   trailingToken.Span,
+						err:    errors.New(trailingToken.Value),
+					})
+				} else {
+					resultError = joinErrors(err, &parseError{
+						source: p.source,
+						span:   trailingToken.Span,
+						err:    errors.New("unrecognized token"),
+					})
+				}
+			}
+		} else {
 			if stmt != nil {
 				result = append(result, stmt)
-			}
-			if _, ok := stmt.(*TabularExpr); ok {
-				hasTabularExpr = true
 			}
 			resultError = joinErrors(resultError, makeErrorOpaque(err))
 			resultError = joinErrors(resultError, stmtParser.endSplit())
@@ -71,9 +84,6 @@ func Parse(query string) ([]Statement, error) {
 		}
 	}
 
-	if !hasTabularExpr {
-		resultError = joinErrors(resultError, errors.New("missing tabular expression"))
-	}
 	if resultError != nil {
 		return result, fmt.Errorf("parse pipeline query language: %w", resultError)
 	}
