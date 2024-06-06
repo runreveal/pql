@@ -21,40 +21,109 @@ type parser struct {
 	splitKind TokenKind
 }
 
-// Parse converts a Pipeline Query Language tabular expression
+// Parse converts a Pipeline Query Language query
 // into an Abstract Syntax Tree (AST).
-func Parse(query string) (*TabularExpr, error) {
+func Parse(query string) ([]Statement, error) {
 	p := &parser{
 		source: query,
 		tokens: Scan(query),
 	}
-	expr, err := p.tabularExpr()
-	if p.pos < len(p.tokens) {
-		trailingToken := p.tokens[p.pos]
-		if trailingToken.Kind == TokenError {
-			err = joinErrors(err, &parseError{
-				source: p.source,
-				span:   trailingToken.Span,
-				err:    errors.New(trailingToken.Value),
-			})
-		} else {
-			err = joinErrors(err, &parseError{
-				source: p.source,
-				span:   trailingToken.Span,
-				err:    errors.New("unrecognized token"),
-			})
+	var result []Statement
+	var resultError error
+	hasTabularExpr := false
+	for {
+		stmtParser := p.splitSemi()
+
+		stmt, err := firstParse(
+			func() (Statement, error) {
+				stmt, err := stmtParser.letStatement()
+				if stmt == nil {
+					// Prevent returning a non-nil interface.
+					return nil, err
+				}
+				return stmt, err
+			},
+			func() (Statement, error) {
+				expr, err := stmtParser.tabularExpr()
+				if expr == nil {
+					// Prevent returning a non-nil interface.
+					return nil, err
+				}
+				return expr, err
+			},
+		)
+
+		// We're okay with empty statements, we just ignore them.
+		if !isNotFound(err) {
+			if stmt != nil {
+				result = append(result, stmt)
+			}
+			if _, ok := stmt.(*TabularExpr); ok {
+				hasTabularExpr = true
+			}
+			resultError = joinErrors(resultError, makeErrorOpaque(err))
+			resultError = joinErrors(resultError, stmtParser.endSplit())
 		}
-	} else if isNotFound(err) {
-		err = &parseError{
+
+		// Next token, if present, guaranteed to be a semicolon.
+		if _, ok := p.next(); !ok {
+			break
+		}
+	}
+
+	if !hasTabularExpr {
+		resultError = joinErrors(resultError, errors.New("missing tabular expression"))
+	}
+	if resultError != nil {
+		return result, fmt.Errorf("parse pipeline query language: %w", resultError)
+	}
+	return result, nil
+}
+
+func firstParse[T any](productions ...func() (T, error)) (T, error) {
+	for _, p := range productions[:len(productions)-1] {
+		x, err := p()
+		if !isNotFound(err) {
+			return x, err
+		}
+	}
+	return productions[len(productions)-1]()
+}
+
+func (p *parser) letStatement() (*LetStatement, error) {
+	keyword, _ := p.next()
+	if keyword.Kind != TokenIdentifier || keyword.Value != "let" {
+		p.prev()
+		return nil, &parseError{
 			source: p.source,
-			span:   indexSpan(len(query)),
-			err:    errors.New("empty query"),
+			span:   keyword.Span,
+			err:    notFoundError{fmt.Errorf("expected 'let', got %s", formatToken(p.source, keyword))},
 		}
 	}
-	if err != nil {
-		return expr, fmt.Errorf("parse pipeline query language: %w", err)
+
+	stmt := &LetStatement{
+		Keyword: keyword.Span,
+		Assign:  nullSpan(),
 	}
-	return expr, nil
+	var err error
+	stmt.Name, err = p.ident()
+	if err != nil {
+		return stmt, makeErrorOpaque(err)
+	}
+	assign, _ := p.next()
+	if assign.Kind != TokenAssign {
+		return stmt, &parseError{
+			source: p.source,
+			span:   assign.Span,
+			err:    fmt.Errorf("expected '=', got %s", formatToken(p.source, assign)),
+		}
+	}
+	stmt.Assign = assign.Span
+	stmt.X, err = p.expr()
+	if err != nil {
+		return stmt, makeErrorOpaque(err)
+	}
+	return stmt, nil
 }
 
 func (p *parser) tabularExpr() (*TabularExpr, error) {
@@ -294,27 +363,10 @@ func (p *parser) takeOperator(pipe, keyword Token) (*TakeOperator, error) {
 		Pipe:    pipe.Span,
 		Keyword: keyword.Span,
 	}
-
-	tok, _ := p.next()
-	if tok.Kind != TokenNumber {
-		return op, &parseError{
-			source: p.source,
-			span:   tok.Span,
-			err:    fmt.Errorf("expected integer, got %s", formatToken(p.source, tok)),
-		}
-	}
-	rowCount := &BasicLit{
-		Kind:      tok.Kind,
-		Value:     tok.Value,
-		ValueSpan: tok.Span,
-	}
-	op.RowCount = rowCount
-	if !rowCount.IsInteger() {
-		return op, &parseError{
-			source: p.source,
-			span:   tok.Span,
-			err:    fmt.Errorf("expected integer, got %s", formatToken(p.source, tok)),
-		}
+	var err error
+	op.RowCount, err = p.rowCount()
+	if err != nil {
+		return op, makeErrorOpaque(err)
 	}
 	return op, nil
 }
@@ -326,30 +378,13 @@ func (p *parser) topOperator(pipe, keyword Token) (*TopOperator, error) {
 		By:      nullSpan(),
 	}
 
-	tok, _ := p.next()
-	if tok.Kind != TokenNumber {
-		p.prev()
-		return op, &parseError{
-			source: p.source,
-			span:   tok.Span,
-			err:    fmt.Errorf("expected integer, got %s", formatToken(p.source, tok)),
-		}
-	}
-	rowCount := &BasicLit{
-		Kind:      tok.Kind,
-		Value:     tok.Value,
-		ValueSpan: tok.Span,
-	}
-	op.RowCount = rowCount
-	if !rowCount.IsInteger() {
-		return op, &parseError{
-			source: p.source,
-			span:   tok.Span,
-			err:    fmt.Errorf("expected integer, got %s", formatToken(p.source, tok)),
-		}
+	var err error
+	op.RowCount, err = p.rowCount()
+	if err != nil {
+		return op, makeErrorOpaque(err)
 	}
 
-	tok, _ = p.next()
+	tok, _ := p.next()
 	if tok.Kind != TokenBy {
 		p.prev()
 		return op, &parseError{
@@ -360,9 +395,26 @@ func (p *parser) topOperator(pipe, keyword Token) (*TopOperator, error) {
 	}
 	op.By = tok.Span
 
-	var err error
 	op.Col, err = p.sortTerm()
 	return op, makeErrorOpaque(err)
+}
+
+func (p *parser) rowCount() (Expr, error) {
+	x, err := p.expr()
+	if err != nil {
+		return x, err
+	}
+	if lit, ok := x.(*BasicLit); ok {
+		// Do basic check for common case of literals.
+		if !lit.IsInteger() {
+			return x, fmt.Errorf("expected integer, got %s", formatToken(p.source, Token{
+				Kind:  lit.Kind,
+				Span:  lit.ValueSpan,
+				Value: lit.Value,
+			}))
+		}
+	}
+	return x, nil
 }
 
 func (p *parser) projectOperator(pipe, keyword Token) (*ProjectOperator, error) {
@@ -1034,7 +1086,9 @@ func (p *parser) qualifiedIdent() (*QualifiedIdent, error) {
 // split advances the parser to right before the next token of the given kind,
 // and returns a new parser that reads the tokens that were skipped over.
 // It ignores tokens that are in parenthetical groups after the initial parse position.
-// If no such token is found, skipTo advances to EOF.
+// If no such token is found, split advances to EOF.
+//
+// For splitting by semicolon, see [*parser.splitSemi].
 func (p *parser) split(search TokenKind) *parser {
 	// stack is the list of expected closing parentheses/brackets.
 	// When a closing parenthesis/bracket is encountered,
@@ -1092,6 +1146,31 @@ loop:
 		source:    p.source,
 		tokens:    p.tokens[start:p.pos],
 		splitKind: search,
+	}
+}
+
+// splitSemi advances the parser to right before the next semicolon,
+// and returns a new parser that reads the tokens that were skipped over.
+// If no semicolon is found, splitSemi advances to EOF.
+func (p *parser) splitSemi() *parser {
+	start := p.pos
+	for {
+		tok, ok := p.next()
+		if !ok {
+			return &parser{
+				source:    p.source,
+				tokens:    p.tokens[start:],
+				splitKind: TokenSemi,
+			}
+		}
+		if tok.Kind == TokenSemi {
+			p.prev()
+			return &parser{
+				source:    p.source,
+				tokens:    p.tokens[start:p.pos],
+				splitKind: TokenSemi,
+			}
+		}
 	}
 }
 

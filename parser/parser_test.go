@@ -13,7 +13,7 @@ import (
 var parserTests = []struct {
 	name  string
 	query string
-	want  *TabularExpr
+	want  []Statement
 	err   bool
 }{
 	{
@@ -31,19 +31,19 @@ var parserTests = []struct {
 	{
 		name:  "OnlyTableName",
 		query: "StormEvents",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
 					NameSpan: newSpan(0, 11),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "OnlyQuotedTableName",
 		query: "`StormEvents`",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -51,12 +51,12 @@ var parserTests = []struct {
 					Quoted:   true,
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "PipeCount",
 		query: "StormEvents | count",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -69,12 +69,12 @@ var parserTests = []struct {
 					Keyword: newSpan(14, 19),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "DoublePipeCount",
 		query: "StormEvents | count | count",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -91,12 +91,12 @@ var parserTests = []struct {
 					Keyword: newSpan(22, 27),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "WhereTrue",
 		query: "StormEvents | where true",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -113,12 +113,12 @@ var parserTests = []struct {
 					}).AsQualified(),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "NegativeNumber",
 		query: "StormEvents | where -42",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -140,12 +140,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ZeroArgFunction",
 		query: `StormEvents | where rand()`,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -166,13 +166,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ZeroArgFunctionWithTrailingComma",
 		query: `StormEvents | where rand(,)`,
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -193,12 +193,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "OneArgFunction",
 		query: "StormEvents | where not(false)",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -225,12 +225,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "TwoArgFunction",
 		query: `StormEvents | where strcat("abc", "def")`,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -263,12 +263,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "TwoArgFunctionWithTrailingComma",
 		query: `StormEvents | where strcat("abc", "def",)`,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -301,13 +301,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "TwoArgFunctionWithTwoTrailingCommas",
 		query: `StormEvents | where strcat("abc", "def",,)`,
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -340,13 +340,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ExtraContentInCount",
 		query: `StormEvents | count x | where true`,
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -367,12 +367,12 @@ var parserTests = []struct {
 					}).AsQualified(),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "BinaryOp",
 		query: "StormEvents | where DamageProperty > 0",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -398,12 +398,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ComparisonWithSamePrecedenceLHS",
 		query: "foo | where x / y * z == 1",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "foo",
@@ -445,12 +445,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ParenthesizedExpr",
 		query: "foo | where x / (y * z) == 1",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "foo",
@@ -496,12 +496,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "OperatorPrecedence",
 		query: "foo | where 2 + 3 * 4 + 5 == 19",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "foo",
@@ -555,12 +555,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "In",
 		query: `StormEvents | where State in ("GEORGIA", "MISSISSIPPI")`,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -594,12 +594,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "InAnd",
 		query: `StormEvents | where State in ("GEORGIA", "MISSISSIPPI") and DamageProperty > 10000`,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -650,12 +650,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "InAndFlipped",
 		query: `StormEvents | where DamageProperty > 10000 and State in ("GEORGIA", "MISSISSIPPI")`,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -706,12 +706,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "MapKey",
 		query: `tab | where mapcol['strkey'] == 42`,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "tab",
@@ -746,13 +746,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "MapKeyTrailingExpression",
 		query: `tab | where mapcol['strkey' x] == 42`,
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "tab",
@@ -787,13 +787,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "BadArgument",
 		query: "foo | where strcat('a', .bork, 'x', 'y')",
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "foo",
@@ -821,13 +821,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "BadParentheticalExpr",
 		query: "foo | where (.bork) + 2",
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "foo",
@@ -853,12 +853,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "SortBy",
 		query: "foo | sort by bar",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "foo",
@@ -881,12 +881,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "OrderBy",
 		query: "foo | order by bar",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "foo",
@@ -909,12 +909,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "SortByTake",
 		query: "foo | sort by bar | take 1",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "foo",
@@ -946,12 +946,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "SortByMultiple",
 		query: "StormEvents | sort by State asc, StartTime desc",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -986,12 +986,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "SortByNullsFirst",
 		query: "foo | sort by bar nulls first",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "foo",
@@ -1015,12 +1015,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "Take",
 		query: "StormEvents | take 5",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1038,12 +1038,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "Limit",
 		query: "StormEvents | limit 5",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1061,12 +1061,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "Project",
 		query: "StormEvents | project EventId, State, EventType",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1102,13 +1102,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ProjectError",
 		query: "StormEvents | project EventId=1 State",
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1138,12 +1138,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ProjectExpr",
 		query: "StormEvents | project TotalInjuries = InjuriesDirect + InjuriesIndirect",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1177,12 +1177,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ExtendExpr",
 		query: "StormEvents | extend TotalInjuries = InjuriesDirect + InjuriesIndirect",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1216,13 +1216,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ExtendError",
 		query: "StormEvents | extend FooFooF=1 State",
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1252,12 +1252,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "UniqueCombination",
 		query: "StormEvents | summarize by State, EventType",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1287,12 +1287,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "MinAndMax",
 		query: "StormEvents | summarize Min = min(Duration), Max = max(Duration)",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1346,12 +1346,12 @@ var parserTests = []struct {
 					By: nullSpan(),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "DistinctCount",
 		query: "StormEvents | summarize TypesOfStorms=dcount(EventType) by State",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1395,13 +1395,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "ShortSummarize",
 		query: "StormEvents | summarize",
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1415,13 +1415,13 @@ var parserTests = []struct {
 					By:      nullSpan(),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "SummarizeByTerminated",
 		query: "StormEvents | summarize by",
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1435,13 +1435,13 @@ var parserTests = []struct {
 					By:      newSpan(24, 26),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "SummarizeRandomToken",
 		query: "StormEvents | summarize and",
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1455,12 +1455,12 @@ var parserTests = []struct {
 					By:      nullSpan(),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "Top",
 		query: "StormEvents | top 3 by InjuriesDirect",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "StormEvents",
@@ -1487,12 +1487,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "Join",
 		query: "X | join (Y) on Key",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "X",
@@ -1526,12 +1526,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "JoinLeft",
 		query: "X | join kind=leftouter (Y) on Key",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "X",
@@ -1569,13 +1569,13 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "JoinBadFlavor",
 		query: "X | join kind=salt (Y) on Key",
 		err:   true,
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "X",
@@ -1613,12 +1613,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "JoinComplexRight",
 		query: "X | join (Y | where z == 5) on Key",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "X",
@@ -1671,12 +1671,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "JoinExplicitCondition",
 		query: "X | join (Y) on $left.Key == $right.Key",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "X",
@@ -1734,12 +1734,12 @@ var parserTests = []struct {
 					},
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "JoinAndCount",
 		query: "X | join (Y) on Key | count",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "X",
@@ -1777,12 +1777,12 @@ var parserTests = []struct {
 					Keyword: newSpan(22, 27),
 				},
 			},
-		},
+		}},
 	},
 	{
 		name:  "As",
 		query: "X | as Y",
-		want: &TabularExpr{
+		want: []Statement{&TabularExpr{
 			Source: &TableRef{
 				Table: &Ident{
 					Name:     "X",
@@ -1796,6 +1796,43 @@ var parserTests = []struct {
 					Name: &Ident{
 						Name:     "Y",
 						NameSpan: newSpan(7, 8),
+					},
+				},
+			},
+		}},
+	},
+	{
+		name:  "Let",
+		query: "let n = 10; Events | take n",
+		want: []Statement{
+			&LetStatement{
+				Keyword: newSpan(0, 3),
+				Name: &Ident{
+					Name:     "n",
+					NameSpan: newSpan(4, 5),
+				},
+				Assign: newSpan(6, 7),
+				X: &BasicLit{
+					Kind:      TokenNumber,
+					ValueSpan: newSpan(8, 10),
+					Value:     "10",
+				},
+			},
+			&TabularExpr{
+				Source: &TableRef{
+					Table: &Ident{
+						Name:     "Events",
+						NameSpan: newSpan(12, 18),
+					},
+				},
+				Operators: []TabularOperator{
+					&TakeOperator{
+						Pipe:    newSpan(19, 20),
+						Keyword: newSpan(21, 25),
+						RowCount: (&Ident{
+							Name:     "n",
+							NameSpan: newSpan(26, 27),
+						}).AsQualified(),
 					},
 				},
 			},

@@ -15,10 +15,15 @@ import (
 // Compile converts the given Pipeline Query Language statement
 // into the equivalent SQL.
 func Compile(source string) (string, error) {
-	expr, err := parser.Parse(source)
+	stmts, err := parser.Parse(source)
 	if err != nil {
 		return "", err
 	}
+	// TODO(now): Expand to permit let statements.
+	if len(stmts) != 1 {
+		return "", fmt.Errorf("compile only supports a single statement")
+	}
+	expr := stmts[0].(*parser.TabularExpr)
 
 	subqueries, err := splitQueries(nil, source, expr)
 	if err != nil {
