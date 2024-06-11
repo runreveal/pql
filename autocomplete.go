@@ -61,6 +61,15 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 			letNames[stmt.Name.Name] = struct{}{}
 		}
 	}
+
+	// Try to figure out whether we're between a semicolon and another statement.
+	nextTokenIndex, _ := slices.BinarySearchFunc(tokens, stmts[i].Span().End, func(tok parser.Token, i int) int {
+		return cmp.Compare(tok.Span.Start, i)
+	})
+	if nextTokenIndex < len(tokens) && tokens[nextTokenIndex].Kind == parser.TokenSemi && pos >= tokens[nextTokenIndex].Span.End {
+		return ctx.completeTableNames(source, prefix)
+	}
+
 	switch stmt := stmts[i].(type) {
 	case *parser.LetStatement:
 		return ctx.suggestLetStatement(source, stmt, letNames, prefix)

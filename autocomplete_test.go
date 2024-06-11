@@ -760,6 +760,30 @@ func TestSuggestCompletions(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "AfterLet",
+			context: &AnalysisContext{
+				Tables: map[string]*AnalysisTable{
+					"People": {
+						Columns: []*AnalysisColumn{
+							{Name: "FirstName"},
+							{Name: "LastName"},
+						},
+					},
+				},
+			},
+			sourceBefore: "let foo = 42;\n",
+			want: []*Completion{
+				{
+					Label: "People",
+					Text:  "People",
+					Span: parser.Span{
+						Start: 14,
+						End:   14,
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
