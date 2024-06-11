@@ -41,8 +41,22 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceBefore: "",
 			sourceAfter:  "",
 			want: []*Completion{
-				{Label: "foo", Insert: "foo"},
-				{Label: "bar", Insert: "bar"},
+				{
+					Label: "foo",
+					Text:  "foo",
+					Span: parser.Span{
+						Start: 0,
+						End:   0,
+					},
+				},
+				{
+					Label: "bar",
+					Text:  "bar",
+					Span: parser.Span{
+						Start: 0,
+						End:   0,
+					},
+				},
 			},
 		},
 		{
@@ -65,7 +79,14 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceBefore: "f",
 			sourceAfter:  "",
 			want: []*Completion{
-				{Label: "foo", Insert: "oo"},
+				{
+					Label: "foo",
+					Text:  "foo",
+					Span: parser.Span{
+						Start: 0,
+						End:   1,
+					},
+				},
 			},
 		},
 		{
@@ -88,8 +109,22 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceBefore: "",
 			sourceAfter:  " | count",
 			want: []*Completion{
-				{Label: "foo", Insert: "foo"},
-				{Label: "bar", Insert: "bar"},
+				{
+					Label: "foo",
+					Text:  "foo",
+					Span: parser.Span{
+						Start: 0,
+						End:   0,
+					},
+				},
+				{
+					Label: "bar",
+					Text:  "bar",
+					Span: parser.Span{
+						Start: 0,
+						End:   0,
+					},
+				},
 			},
 		},
 		{
@@ -112,8 +147,22 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceBefore: "",
 			sourceAfter:  "o | count",
 			want: []*Completion{
-				{Label: "foo", Insert: "foo"},
-				{Label: "bar", Insert: "bar"},
+				{
+					Label: "foo",
+					Text:  "foo",
+					Span: parser.Span{
+						Start: 0,
+						End:   0,
+					},
+				},
+				{
+					Label: "bar",
+					Text:  "bar",
+					Span: parser.Span{
+						Start: 0,
+						End:   0,
+					},
+				},
 			},
 		},
 		{
@@ -136,8 +185,20 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceBefore: "",
 			sourceAfter:  " x | count",
 			want: []*Completion{
-				{Label: "foo", Insert: "foo"},
-				{Label: "bar", Insert: "bar"},
+				{
+					Label: "foo",
+					Text:  "foo",
+					Span: parser.Span{
+						Start: 0,
+						End:   0,
+					}},
+				{
+					Label: "bar",
+					Text:  "bar",
+					Span: parser.Span{
+						Start: 0,
+						End:   0,
+					}},
 			},
 		},
 		{
@@ -161,52 +222,100 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceAfter:  "",
 			want: []*Completion{
 				{
-					Label:  "as",
-					Insert: "| as",
+					Label: "as",
+					Text:  "| as",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "count",
-					Insert: "| count",
+					Label: "count",
+					Text:  "| count",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "extend",
-					Insert: "| extend",
+					Label: "extend",
+					Text:  "| extend",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "join",
-					Insert: "| join",
+					Label: "join",
+					Text:  "| join",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "limit",
-					Insert: "| limit",
+					Label: "limit",
+					Text:  "| limit",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "order",
-					Insert: "| order by",
+					Label: "order",
+					Text:  "| order by",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "project",
-					Insert: "| project",
+					Label: "project",
+					Text:  "| project",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "sort",
-					Insert: "| sort by",
+					Label: "sort",
+					Text:  "| sort by",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "summarize",
-					Insert: "| summarize",
+					Label: "summarize",
+					Text:  "| summarize",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "take",
-					Insert: "| take",
+					Label: "take",
+					Text:  "| take",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "top",
-					Insert: "| top",
+					Label: "top",
+					Text:  "| top",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 				{
-					Label:  "where",
-					Insert: "| where",
+					Label: "where",
+					Text:  "| where",
+					Span: parser.Span{
+						Start: 4,
+						End:   4,
+					},
 				},
 			},
 		},
@@ -231,52 +340,100 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceAfter:  "",
 			want: []*Completion{
 				{
-					Label:  "as",
-					Insert: " as",
+					Label: "as",
+					Text:  " as",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "count",
-					Insert: " count",
+					Label: "count",
+					Text:  " count",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "extend",
-					Insert: " extend",
+					Label: "extend",
+					Text:  " extend",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "join",
-					Insert: " join",
+					Label: "join",
+					Text:  " join",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "limit",
-					Insert: " limit",
+					Label: "limit",
+					Text:  " limit",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "order",
-					Insert: " order by",
+					Label: "order",
+					Text:  " order by",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "project",
-					Insert: " project",
+					Label: "project",
+					Text:  " project",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "sort",
-					Insert: " sort by",
+					Label: "sort",
+					Text:  " sort by",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "summarize",
-					Insert: " summarize",
+					Label: "summarize",
+					Text:  " summarize",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "take",
-					Insert: " take",
+					Label: "take",
+					Text:  " take",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "top",
-					Insert: " top",
+					Label: "top",
+					Text:  " top",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 				{
-					Label:  "where",
-					Insert: " where",
+					Label: "where",
+					Text:  " where",
+					Span: parser.Span{
+						Start: 5,
+						End:   5,
+					},
 				},
 			},
 		},
@@ -301,52 +458,100 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceAfter:  "",
 			want: []*Completion{
 				{
-					Label:  "as",
-					Insert: "as",
+					Label: "as",
+					Text:  "as",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "count",
-					Insert: "count",
+					Label: "count",
+					Text:  "count",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "extend",
-					Insert: "extend",
+					Label: "extend",
+					Text:  "extend",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "join",
-					Insert: "join",
+					Label: "join",
+					Text:  "join",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "limit",
-					Insert: "limit",
+					Label: "limit",
+					Text:  "limit",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "order",
-					Insert: "order by",
+					Label: "order",
+					Text:  "order by",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "project",
-					Insert: "project",
+					Label: "project",
+					Text:  "project",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "sort",
-					Insert: "sort by",
+					Label: "sort",
+					Text:  "sort by",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "summarize",
-					Insert: "summarize",
+					Label: "summarize",
+					Text:  "summarize",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "take",
-					Insert: "take",
+					Label: "take",
+					Text:  "take",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "top",
-					Insert: "top",
+					Label: "top",
+					Text:  "top",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 				{
-					Label:  "where",
-					Insert: "where",
+					Label: "where",
+					Text:  "where",
+					Span: parser.Span{
+						Start: 7,
+						End:   7,
+					},
 				},
 			},
 		},
@@ -370,8 +575,12 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceBefore: "foo | whe",
 			want: []*Completion{
 				{
-					Label:  "where",
-					Insert: "re",
+					Label: "where",
+					Text:  "where",
+					Span: parser.Span{
+						Start: 6,
+						End:   9,
+					},
 				},
 			},
 		},
@@ -395,8 +604,12 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceBefore: "foo | where n",
 			want: []*Completion{
 				{
-					Label:  "name",
-					Insert: "ame",
+					Label: "name",
+					Text:  "name",
+					Span: parser.Span{
+						Start: 12,
+						End:   13,
+					},
 				},
 			},
 		},
@@ -420,8 +633,12 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceBefore: "foo | join (b",
 			want: []*Completion{
 				{
-					Label:  "bar",
-					Insert: "ar",
+					Label: "bar",
+					Text:  "bar",
+					Span: parser.Span{
+						Start: 12,
+						End:   13,
+					},
 				},
 			},
 		},
@@ -445,8 +662,12 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceBefore: "foo | join (bar) on i",
 			want: []*Completion{
 				{
-					Label:  "id",
-					Insert: "d",
+					Label: "id",
+					Text:  "id",
+					Span: parser.Span{
+						Start: 20,
+						End:   21,
+					},
 				},
 			},
 		},
@@ -466,8 +687,12 @@ func TestSuggestCompletions(t *testing.T) {
 			sourceAfter:  ", LastName",
 			want: []*Completion{
 				{
-					Label:  "FirstName",
-					Insert: "irstName",
+					Label: "FirstName",
+					Text:  "FirstName",
+					Span: parser.Span{
+						Start: 17,
+						End:   18,
+					},
 				},
 			},
 		},
@@ -480,10 +705,16 @@ func TestSuggestCompletions(t *testing.T) {
 				End:   len(test.sourceBefore),
 			})
 			completionLess := func(a, b *Completion) bool {
+				if a.Span.Start != b.Span.Start {
+					return a.Span.Start < b.Span.Start
+				}
+				if a.Span.End != b.Span.End {
+					return a.Span.End < b.Span.End
+				}
 				if a.Label != b.Label {
 					return a.Label < b.Label
 				}
-				return a.Insert < b.Insert
+				return a.Text < b.Text
 			}
 			if diff := cmp.Diff(test.want, got, cmpopts.SortSlices(completionLess)); diff != "" {
 				t.Errorf("SuggestCompletions(...) (-want +got):\n%s", diff)

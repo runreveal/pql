@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"errors"
+	"fmt"
 	"html"
 	"io"
 	"io/fs"
@@ -86,9 +87,10 @@ func suggest(w http.ResponseWriter, r *http.Request) {
 		buf.WriteString(`<li class="p-2">No completions.</li>`)
 	} else {
 		for _, c := range completions {
-			buf.WriteString(`<li class="p-2 hover:bg-white/25 has-[:focus]:bg-white/50 has-[:active]:bg-white/50"><a class="outline-none" href="#" data-action="analysis#fill" data-analysis-insert-param="`)
-			buf.WriteString(html.EscapeString(c.Insert))
-			buf.WriteString(`">`)
+			buf.WriteString(`<li class="p-2 hover:bg-white/25 has-[:focus]:bg-white/50 has-[:active]:bg-white/50"><a class="outline-none" href="#" data-action="analysis#fill"`)
+			fmt.Fprintf(buf, ` data-analysis-text-param="%s"`, html.EscapeString(c.Text))
+			fmt.Fprintf(buf, ` data-analysis-start-param="%d"`, c.Span.Start)
+			fmt.Fprintf(buf, ` data-analysis-end-param="%d">`, c.Span.End)
 			buf.WriteString(html.EscapeString(c.Label))
 			buf.WriteString("</a></li>\n")
 		}

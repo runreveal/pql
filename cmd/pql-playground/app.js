@@ -56,12 +56,11 @@ Stimulus.register('analysis', class extends Controller {
    * @param {Event} event
    */
   fill(event) {
-    const i = this.editorTarget.selectionEnd;
-    this.editorTarget.value = this.editorTarget.value.substring(0, i) +
-      event.params.insert +
-      this.editorTarget.value.substring(i);
-    const insertEnd = i + event.params.insert.length;
-    this.editorTarget.setSelectionRange(insertEnd, insertEnd);
+    this.editorTarget.value = this.editorTarget.value.substring(0, event.params.start) +
+      event.params.text +
+      this.editorTarget.value.substring(event.params.end);
+    const i = event.params.start + event.params.insert.length;
+    this.editorTarget.setSelectionRange(i, i);
 
     this.clear();
   }

@@ -31,11 +31,16 @@ type AnalysisColumn struct {
 // returned by [AnalysisContext.SuggestCompletions].
 type Completion struct {
 	// Label is the label that should be displayed for the completion.
-	// It represents the full string that is being completed.
+	// It is often the same as Text,
+	// but Text may include extra characters for convenience.
 	Label string
-	// Insert is the text that should be inserted after the cursor
-	// to perform the completion.
-	Insert string
+	// Text is the full string that is being placed.
+	Text string
+	// Span is the position where Text should be placed.
+	// If the span's length is zero,
+	// then the text should be inserted for a successful completion.
+	// Otherwise, the span indicates text that should be replaced with the text.
+	Span parser.Span
 }
 
 // SuggestCompletions suggests possible snippets to insert
@@ -45,10 +50,10 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 
 	tokens := parser.Scan(source)
 	stmts, _ := parser.Parse(source)
-	prefix := completionPrefix(source, tokens, pos)
+	prefix := completionPrefix(tokens, pos)
 	i := spanBefore(stmts, pos, parser.Statement.Span)
 	if i < 0 {
-		return ctx.completeTableNames(prefix)
+		return ctx.completeTableNames(source, prefix)
 	}
 	letNames := make(map[string]struct{})
 	for _, stmt := range stmts[:i] {
@@ -58,113 +63,112 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 	}
 	switch stmt := stmts[i].(type) {
 	case *parser.LetStatement:
-		return ctx.suggestLetStatement(stmt, letNames, prefix, pos)
+		return ctx.suggestLetStatement(source, stmt, letNames, prefix)
 	case *parser.TabularExpr:
-		return ctx.suggestTabularExpr(stmt, letNames, prefix, pos)
+		return ctx.suggestTabularExpr(source, stmt, letNames, prefix)
 	default:
 		return nil
 	}
 }
 
-func (ctx *AnalysisContext) suggestLetStatement(stmt *parser.LetStatement, letNames map[string]struct{}, prefix string, pos int) []*Completion {
-	if !stmt.Assign.IsValid() || pos < stmt.Assign.End {
+func (ctx *AnalysisContext) suggestLetStatement(source string, stmt *parser.LetStatement, letNames map[string]struct{}, prefix parser.Span) []*Completion {
+	if !stmt.Assign.IsValid() || prefix.End < stmt.Assign.End {
 		return nil
 	}
-	return completeScope(prefix, letNames)
+	return completeScope(source, prefix, letNames)
 }
 
-func (ctx *AnalysisContext) suggestTabularExpr(expr *parser.TabularExpr, letNames map[string]struct{}, prefix string, pos int) []*Completion {
-	posSpan := parser.Span{Start: pos, End: pos}
+func (ctx *AnalysisContext) suggestTabularExpr(source string, expr *parser.TabularExpr, letNames map[string]struct{}, prefix parser.Span) []*Completion {
 	if expr == nil {
-		return ctx.completeTableNames(prefix)
+		return ctx.completeTableNames(source, prefix)
 	}
 
-	if sourceSpan := expr.Source.Span(); posSpan.Overlaps(sourceSpan) || pos < sourceSpan.Start {
+	if sourceSpan := expr.Source.Span(); prefix.Overlaps(sourceSpan) || prefix.End < sourceSpan.Start {
 		// Assume that this is a table name.
-		return ctx.completeTableNames(prefix)
+		return ctx.completeTableNames(source, prefix)
 	}
 
 	// Find the operator that this cursor is associated with.
-	i := spanBefore(expr.Operators, pos, parser.TabularOperator.Span)
+	i := spanBefore(expr.Operators, prefix.End, parser.TabularOperator.Span)
 	if i < 0 {
 		// Before the first operator.
-		return completeOperators("")
+		return completeOperators(source, prefix, true)
 	}
 
 	columns := ctx.determineColumnsInScope(expr.Source, expr.Operators[:i])
 
 	switch op := expr.Operators[i].(type) {
 	case *parser.UnknownTabularOperator:
-		if pos == op.Pipe.End {
-			return completeOperators("|")
+		if prefix.End == op.Pipe.End {
+			return completeOperators(source, prefix, false)
 		}
-		if name := op.Name(); name != nil && name.NameSpan.Overlaps(posSpan) {
-			return completeOperators("| " + prefix)
+		if name := op.Name(); name != nil && name.NameSpan.Overlaps(prefix) {
+			return completeOperators(source, prefix, false)
 		}
-		if len(op.Tokens) == 0 || pos < op.Tokens[0].Span.Start {
-			return completeOperators("| ")
+		if len(op.Tokens) == 0 || prefix.End < op.Tokens[0].Span.Start {
+			return completeOperators(source, prefix, false)
 		}
 		return nil
 	case *parser.WhereOperator:
-		if pos <= op.Keyword.Start {
-			return completeOperators("|")
+		if prefix.End <= op.Keyword.Start {
+			return completeOperators(source, prefix, false)
 		}
-		if pos <= op.Keyword.End {
+		if prefix.End <= op.Keyword.End {
 			return nil
 		}
-		return completeColumnNames(prefix, columns)
+		return completeColumnNames(source, prefix, columns)
 	case *parser.SortOperator:
-		if pos <= op.Keyword.Start {
-			return completeOperators("|")
+		if prefix.End <= op.Keyword.Start {
+			return completeOperators(source, prefix, false)
 		}
-		if pos <= op.Keyword.End {
+		if prefix.End <= op.Keyword.End {
 			return nil
 		}
-		return completeColumnNames(prefix, columns)
+		return completeColumnNames(source, prefix, columns)
 	case *parser.TopOperator:
-		if pos <= op.Keyword.Start {
-			return completeOperators("|")
+		if prefix.End <= op.Keyword.Start {
+			return completeOperators(source, prefix, false)
 		}
-		if !op.By.IsValid() || pos <= op.By.End {
+		if !op.By.IsValid() || prefix.End <= op.By.End {
 			return nil
 		}
-		return completeColumnNames(prefix, columns)
+		return completeColumnNames(source, prefix, columns)
 	case *parser.ProjectOperator:
-		if pos <= op.Keyword.Start {
-			return completeOperators("|")
+		if prefix.End <= op.Keyword.Start {
+			return completeOperators(source, prefix, false)
 		}
-		if pos <= op.Keyword.End {
+		if prefix.End <= op.Keyword.End {
 			return nil
 		}
-		return completeColumnNames(prefix, columns)
+		return completeColumnNames(source, prefix, columns)
 	case *parser.ExtendOperator:
-		if pos <= op.Keyword.Start {
-			return completeOperators("|")
+		if prefix.End <= op.Keyword.Start {
+			return completeOperators(source, prefix, false)
 		}
-		if pos <= op.Keyword.End {
+		if prefix.End <= op.Keyword.End {
 			return nil
 		}
-		return completeColumnNames(prefix, columns)
+		return completeColumnNames(source, prefix, columns)
 	case *parser.SummarizeOperator:
-		if pos <= op.Keyword.Start {
-			return completeOperators("|")
+		if prefix.End <= op.Keyword.Start {
+			return completeOperators(source, prefix, false)
 		}
-		if pos <= op.Keyword.End {
+		if prefix.End <= op.Keyword.End {
 			return nil
 		}
-		return completeColumnNames(prefix, columns)
+		return completeColumnNames(source, prefix, columns)
 	case *parser.JoinOperator:
-		if pos <= op.Keyword.Start {
-			return completeOperators("|")
+		if prefix.End <= op.Keyword.Start {
+			return completeOperators(source, prefix, false)
 		}
-		if pos <= op.Keyword.End {
+		if prefix.End <= op.Keyword.End {
 			return nil
 		}
-		if op.Lparen.IsValid() && pos >= op.Lparen.End && (!op.Rparen.IsValid() || pos <= op.Rparen.Start) {
-			return ctx.suggestTabularExpr(op.Right, letNames, prefix, pos)
+		if op.Lparen.IsValid() && prefix.End >= op.Lparen.End && (!op.Rparen.IsValid() || prefix.End <= op.Rparen.Start) {
+			return ctx.suggestTabularExpr(source, op.Right, letNames, prefix)
 		}
-		if op.On.IsValid() && pos > op.On.End {
-			return completeColumnNames(prefix, columns)
+		if op.On.IsValid() && prefix.End > op.On.End {
+			return completeColumnNames(source, prefix, columns)
 		}
 		return nil
 	default:
@@ -232,93 +236,116 @@ func (ctx *AnalysisContext) determineColumnsInScope(source parser.TabularDataSou
 	return columns
 }
 
-func completeColumnNames(prefix string, columns []*AnalysisColumn) []*Completion {
+func completeColumnNames(source string, prefixSpan parser.Span, columns []*AnalysisColumn) []*Completion {
+	prefix := source[prefixSpan.Start:prefixSpan.End]
+
 	result := make([]*Completion, 0, len(columns))
 	for _, col := range columns {
 		if strings.HasPrefix(col.Name, prefix) {
 			result = append(result, &Completion{
-				Label:  col.Name,
-				Insert: col.Name[len(prefix):],
+				Label: col.Name,
+				Text:  col.Name,
+				Span:  prefixSpan,
 			})
 		}
 	}
 	return result
 }
 
-func completeScope(prefix string, scope map[string]struct{}) []*Completion {
+func completeScope(source string, prefixSpan parser.Span, scope map[string]struct{}) []*Completion {
+	prefix := source[prefixSpan.Start:prefixSpan.End]
+
 	result := make([]*Completion, 0, len(scope))
 	for name := range scope {
 		if strings.HasPrefix(name, prefix) {
 			result = append(result, &Completion{
-				Label:  name,
-				Insert: name[len(prefix):],
+				Label: name,
+				Text:  name,
+				Span:  prefixSpan,
 			})
 		}
 	}
 	return result
 }
 
-func (ctx *AnalysisContext) completeTableNames(prefix string) []*Completion {
+func (ctx *AnalysisContext) completeTableNames(source string, prefixSpan parser.Span) []*Completion {
+	prefix := source[prefixSpan.Start:prefixSpan.End]
+
 	result := make([]*Completion, 0, len(ctx.Tables))
 	for tableName := range ctx.Tables {
 		if strings.HasPrefix(tableName, prefix) {
 			result = append(result, &Completion{
-				Label:  tableName,
-				Insert: tableName[len(prefix):],
+				Label: tableName,
+				Text:  tableName,
+				Span:  prefixSpan,
 			})
 		}
 	}
 	slices.SortFunc(result, func(a, b *Completion) int {
-		return cmp.Compare(a.Label, b.Label)
+		return cmp.Compare(a.Text, b.Text)
 	})
 	return result
 }
 
-func completeOperators(prefix string) []*Completion {
-	result := make([]*Completion, 0, len(sortedOperatorNames))
-	var namePrefix string
-	if rest, ok := strings.CutPrefix(prefix, "|"); ok {
-		if rest, ok = strings.CutPrefix(rest, " "); ok {
-			namePrefix = rest
+func completeOperators(source string, prefixSpan parser.Span, includePipe bool) []*Completion {
+	if includePipe {
+		// Should always be an insert, not a replacement.
+		prefixSpan = parser.Span{
+			Start: prefixSpan.End,
+			End:   prefixSpan.End,
 		}
 	}
+	prefix := source[prefixSpan.Start:prefixSpan.End]
+	leading := ""
+	if includePipe {
+		leading = "| "
+	} else if prefixSpan.Len() == 0 && prefixSpan.Start > 0 && source[prefixSpan.Start-1] == '|' {
+		// If directly adjacent to pipe, automatically add a space.
+		leading = " "
+	}
 
+	result := make([]*Completion, 0, len(sortedOperatorNames))
 	for _, name := range sortedOperatorNames {
-		if !strings.HasPrefix(name, namePrefix) {
+		if !strings.HasPrefix(name, prefix) {
 			continue
 		}
 		c := &Completion{
-			Label:  name,
-			Insert: ("| " + name)[len(prefix):],
+			Label: name,
+			Text:  leading + name,
+			Span:  prefixSpan,
 		}
 		if name == "order" || name == "sort" {
-			c.Insert += " by"
+			c.Text += " by"
 		}
 		result = append(result, c)
 	}
 	return result
 }
 
-func completionPrefix(source string, tokens []parser.Token, pos int) string {
-	if len(tokens) == 0 {
-		return ""
+// completionPrefix returns a span of characters that should be considered for
+// filtering completion results and replacement during the completion.
+func completionPrefix(tokens []parser.Token, pos int) parser.Span {
+	result := parser.Span{
+		Start: pos,
+		End:   pos,
 	}
-	i := spanBefore(tokens, pos, func(tok parser.Token) parser.Span {
-		return tok.Span
-	})
+	if len(tokens) == 0 {
+		return result
+	}
+	i := spanBefore(tokens, pos, func(tok parser.Token) parser.Span { return tok.Span })
 	if i < 0 {
-		return ""
+		return result
 	}
 	if !tokens[i].Span.Overlaps(parser.Span{Start: pos, End: pos}) || !isCompletableToken(tokens[i].Kind) {
 		// Cursor is not adjacent to token. Assume there's whitespace.
-		return ""
+		return result
 	}
-	start := tokens[i].Span.Start
+	result.Start = tokens[i].Span.Start
 	if tokens[i].Kind == parser.TokenQuotedIdentifier {
 		// Skip past initial backtick.
-		start += len("`")
+		result.Start += len("`")
 	}
-	return source[start:pos]
+	return result
 }
 
 // spanBefore finds the first span in a sorted slice
