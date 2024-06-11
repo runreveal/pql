@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -51,7 +52,11 @@ func TestClickhouseLocal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			query, err := Compile(pqlInput)
+			compileOptions, testOptions, err := test.options()
+			if err != nil {
+				t.Fatal(err)
+			}
+			query, err := compileOptions.Compile(pqlInput)
 			if err != nil {
 				t.Fatal("Compile:", err)
 			}
@@ -68,6 +73,7 @@ func TestClickhouseLocal(t *testing.T) {
 				stmt := fmt.Sprintf("CREATE TABLE \"%s\" AS file(%s, %s);", tab.name, fnameBuf, formatBuf)
 				args = append(args, "--query", stmt)
 			}
+			args = appendClickhouseParameterArgs(args, testOptions.parameterValues)
 			args = append(args, "--query", query)
 
 			c := exec.Command(clickhouseExe, args...)
@@ -159,4 +165,27 @@ func findLocalTables(dir string) ([]localTable, error) {
 		}
 	}
 	return result, nil
+}
+
+func appendClickhouseParameterArgs(dst []string, params map[string]string) []string {
+	if len(params) == 0 {
+		return dst
+	}
+
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+
+	sb := new(strings.Builder)
+	for _, k := range keys {
+		sb.WriteString("SET param_")
+		sb.WriteString(k)
+		sb.WriteString(" = ")
+		quoteSQLString(sb, params[k])
+		sb.WriteString(";")
+	}
+	dst = append(dst, "--query", sb.String())
+	return dst
 }

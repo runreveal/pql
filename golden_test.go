@@ -5,6 +5,7 @@ package pql
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/tailscale/hujson"
 )
 
 var recordGoldens = flag.Bool("record", false, "output golden files")
@@ -34,8 +36,12 @@ func TestGoldens(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			compileOptions, _, err := test.options()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-			got, err := Compile(input)
+			got, err := compileOptions.Compile(input)
 			if err != nil {
 				t.Error("Compile(...):", err)
 			}
@@ -110,6 +116,47 @@ func findGoldenTests() ([]goldenTest, error) {
 func (test goldenTest) input() (string, error) {
 	input, err := os.ReadFile(filepath.Join(test.dir, "input.pql"))
 	return string(input), err
+}
+
+type testOptions struct {
+	parameterValues map[string]string
+}
+
+func (test goldenTest) options() (*CompileOptions, *testOptions, error) {
+	type testParameter struct {
+		Value string `json:"value"`
+		SQL   string `json:"clickhouse"`
+	}
+
+	path := filepath.Join(test.dir, "options.jwcc")
+	input, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil, new(testOptions), nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	input, err = hujson.Standardize(input)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse %s: %v", path, err)
+	}
+	var parsed struct {
+		Parameters map[string]testParameter `json:"parameters"`
+	}
+	if err := json.Unmarshal(input, &parsed); err != nil {
+		return nil, nil, fmt.Errorf("parse %s: %v", path, err)
+	}
+	opts := &CompileOptions{
+		Parameters: make(map[string]string, len(parsed.Parameters)),
+	}
+	testOpts := &testOptions{
+		parameterValues: make(map[string]string, len(parsed.Parameters)),
+	}
+	for name, p := range parsed.Parameters {
+		opts.Parameters[name] = p.SQL
+		testOpts.parameterValues[name] = p.Value
+	}
+	return opts, testOpts, nil
 }
 
 func shouldIgnoreFilename(name string) bool {
