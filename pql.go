@@ -49,7 +49,7 @@ func (opts *CompileOptions) Compile(source string) (string, error) {
 		source: source,
 	}
 	if opts != nil {
-		ctx.params = opts.Parameters
+		ctx.scope = opts.Parameters
 	}
 	if len(ctes) > 0 {
 		sb.WriteString("WITH ")
@@ -507,7 +507,7 @@ const (
 
 type exprContext struct {
 	source string
-	params map[string]string
+	scope  map[string]string
 	mode   exprMode
 }
 
@@ -527,7 +527,7 @@ func writeExpression(ctx *exprContext, sb *strings.Builder, x parser.Expr) error
 		if len(x.Parts) == 1 {
 			part := x.Parts[0]
 			if !part.Quoted {
-				if sql, ok := ctx.params[part.Name]; ok {
+				if sql, ok := ctx.scope[part.Name]; ok {
 					sb.WriteString(sql)
 					return nil
 				}
