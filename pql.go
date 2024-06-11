@@ -55,6 +55,11 @@ func (opts *CompileOptions) Compile(source string) (string, error) {
 			}
 			expr = stmt
 		case *parser.LetStatement:
+			if expr != nil {
+				// Skip let statements after the query:
+				// they should not be in scope.
+				continue
+			}
 			ctx := &exprContext{
 				source: source,
 				scope:  scope,
