@@ -478,42 +478,50 @@ func (p *parser) extendOperator(pipe, keyword Token) (*ExtendOperator, error) {
 	}
 
 	for {
-		colName, err := p.ident()
+		col, err := p.extendColumn()
 		if err != nil {
 			return op, makeErrorOpaque(err)
-		}
-		col := &ExtendColumn{
-			Name:   colName,
-			Assign: nullSpan(),
 		}
 		op.Cols = append(op.Cols, col)
 
 		sep, ok := p.next()
 		if !ok {
-			return op, fmt.Errorf("expected '=' followed by expression for assignment, got EOF")
-		}
-
-		// Unlike in project, extend must be an assignment after
-		// the column name token. And afterwards the token must be
-		// a comma as a separator
-		if sep.Kind != TokenAssign {
-			return op, makeErrorOpaque(err)
-		}
-
-		col.Assign = sep.Span
-		col.X, err = p.expr()
-		if err != nil {
-			return op, makeErrorOpaque(err)
-		}
-		sep, ok = p.next()
-		if !ok {
 			return op, nil
 		}
 		if sep.Kind != TokenComma {
-			return op, fmt.Errorf("expected '=' followed by expression for assignment, got EOF")
-
+			p.prev()
+			return op, nil
 		}
 	}
+}
+
+func (p *parser) extendColumn() (*ExtendColumn, error) {
+	restorePos := p.pos
+
+	col := &ExtendColumn{
+		Assign: nullSpan(),
+	}
+
+	var err error
+	col.Name, err = p.ident()
+	if err == nil {
+		if assign, _ := p.next(); assign.Kind == TokenAssign {
+			col.Assign = assign.Span
+		} else {
+			col.Name = nil
+			p.pos = restorePos
+		}
+	} else if !isNotFound(err) {
+		col.X = col.Name.AsQualified()
+		col.Name = nil
+		return col, makeErrorOpaque(err)
+	}
+
+	col.X, err = p.expr()
+	if col.Name != nil {
+		err = makeErrorOpaque(err)
+	}
+	return col, err
 }
 
 func (p *parser) summarizeOperator(pipe, keyword Token) (*SummarizeOperator, error) {

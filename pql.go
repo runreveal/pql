@@ -14,13 +14,35 @@ import (
 
 // Compile converts the given Pipeline Query Language statement
 // into the equivalent SQL.
+// This is equivalent to new(CompileOptions).Compile(source).
 func Compile(source string) (string, error) {
+	return ((*CompileOptions)(nil)).Compile(source)
+}
+
+// CompileOptions a set of optional parameters
+// that configure compilation.
+// nil is treated the same as the zero value.
+type CompileOptions struct {
+	// Parameters is a map of identifiers to SQL snippets to substitute in.
+	// For example, a "foo": "$1" entry would replace unquoted "foo" identifiers
+	// with "$1" in the resulting SQL.
+	Parameters map[string]string
+}
+
+// Compile converts the given Pipeline Query Language statement
+// into the equivalent SQL.
+func (opts *CompileOptions) Compile(source string) (string, error) {
 	stmts, err := parser.Parse(source)
 	if err != nil {
 		return "", err
 	}
 	var expr *parser.TabularExpr
 	scope := make(map[string]string)
+	if opts != nil {
+		for k, v := range opts.Parameters {
+			scope[k] = v
+		}
+	}
 	for _, stmt := range stmts {
 		switch stmt := stmt.(type) {
 		case *parser.TabularExpr:
@@ -360,17 +382,21 @@ func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 		sb.WriteString("SELECT *")
 		for _, col := range op.Cols {
 			sb.WriteString(", ")
+			if err := writeExpression(ctx, sb, col.X); err != nil {
+				return err
+			}
 			if col.X == nil {
 				if err := writeExpression(ctx, sb, col.Name.AsQualified()); err != nil {
 					return err
 				}
-			} else {
-				if err := writeExpression(ctx, sb, col.X); err != nil {
-					return err
-				}
 			}
 			sb.WriteString(" AS ")
-			quoteIdentifier(sb, col.Name.Name)
+			if col.Name != nil {
+				quoteIdentifier(sb, col.Name.Name)
+			} else {
+				span := col.X.Span()
+				quoteIdentifier(sb, ctx.source[span.Start:span.End])
+			}
 		}
 		sb.WriteString(" FROM ")
 		sb.WriteString(sub.sourceSQL)

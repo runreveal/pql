@@ -277,9 +277,8 @@ func (op *ExtendOperator) Span() Span {
 }
 
 // A ExtendColumn is a single column term in a [ExtendOperator].
-// It consists of a column name,
-// and must be followed by an expression specifying how to compute the column.
-// If the expression is omitted, it is invalid.
+// It consists of an expression, optionally preceded by a column name.
+// If the column name is omitted, one is derived from the expression.
 type ExtendColumn struct {
 	Name   *Ident
 	Assign Span
