@@ -1219,6 +1219,99 @@ var parserTests = []struct {
 		},
 	},
 	{
+		name:  "ExtendExprOnly",
+		query: "StormEvents | extend InjuriesDirect + InjuriesIndirect",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "StormEvents",
+					NameSpan: newSpan(0, 11),
+				},
+			},
+			Operators: []TabularOperator{
+				&ExtendOperator{
+					Pipe:    newSpan(12, 13),
+					Keyword: newSpan(14, 20),
+					Cols: []*ExtendColumn{
+						{
+							Assign: nullSpan(),
+							X: &BinaryExpr{
+								X: (&Ident{
+									Name:     "InjuriesDirect",
+									NameSpan: newSpan(21, 35),
+								}).AsQualified(),
+								OpSpan: newSpan(36, 37),
+								Op:     TokenPlus,
+								Y: (&Ident{
+									Name:     "InjuriesIndirect",
+									NameSpan: newSpan(38, 54),
+								}).AsQualified(),
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		name:  "ExtendExprMultiple",
+		query: "StormEvents | extend TotalInjuries = InjuriesDirect + InjuriesIndirect, Duration = EndTime - StartTime",
+		want: &TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "StormEvents",
+					NameSpan: newSpan(0, 11),
+				},
+			},
+			Operators: []TabularOperator{
+				&ExtendOperator{
+					Pipe:    newSpan(12, 13),
+					Keyword: newSpan(14, 20),
+					Cols: []*ExtendColumn{
+						{
+							Name: &Ident{
+								Name:     "TotalInjuries",
+								NameSpan: newSpan(21, 34),
+							},
+							Assign: newSpan(35, 36),
+							X: &BinaryExpr{
+								X: (&Ident{
+									Name:     "InjuriesDirect",
+									NameSpan: newSpan(37, 51),
+								}).AsQualified(),
+								OpSpan: newSpan(52, 53),
+								Op:     TokenPlus,
+								Y: (&Ident{
+									Name:     "InjuriesIndirect",
+									NameSpan: newSpan(54, 70),
+								}).AsQualified(),
+							},
+						},
+						{
+							Name: &Ident{
+								Name:     "Duration",
+								NameSpan: newSpan(72, 80),
+							},
+							Assign: newSpan(81, 82),
+							X: &BinaryExpr{
+								X: (&Ident{
+									Name:     "EndTime",
+									NameSpan: newSpan(83, 90),
+								}).AsQualified(),
+								OpSpan: newSpan(91, 92),
+								Op:     TokenMinus,
+								Y: (&Ident{
+									Name:     "StartTime",
+									NameSpan: newSpan(93, 102),
+								}).AsQualified(),
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+	{
 		name:  "ExtendError",
 		query: "StormEvents | extend FooFooF=1 State",
 		err:   true,
