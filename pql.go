@@ -14,10 +14,72 @@ import (
 
 // Compile converts the given Pipeline Query Language statement
 // into the equivalent SQL.
+// This is equivalent to new(CompileOptions).Compile(source).
 func Compile(source string) (string, error) {
-	expr, err := parser.Parse(source)
+	return ((*CompileOptions)(nil)).Compile(source)
+}
+
+// CompileOptions a set of optional parameters
+// that configure compilation.
+// nil is treated the same as the zero value.
+type CompileOptions struct {
+	// Parameters is a map of identifiers to SQL snippets to substitute in.
+	// For example, a "foo": "$1" entry would replace unquoted "foo" identifiers
+	// with "$1" in the resulting SQL.
+	Parameters map[string]string
+}
+
+// Compile converts the given Pipeline Query Language statement
+// into the equivalent SQL.
+func (opts *CompileOptions) Compile(source string) (string, error) {
+	stmts, err := parser.Parse(source)
 	if err != nil {
 		return "", err
+	}
+	var expr *parser.TabularExpr
+	scope := make(map[string]string)
+	if opts != nil {
+		for k, v := range opts.Parameters {
+			scope[k] = v
+		}
+	}
+	for _, stmt := range stmts {
+		switch stmt := stmt.(type) {
+		case *parser.TabularExpr:
+			if expr != nil {
+				return "", &compileError{
+					source: source,
+					span:   stmt.Span(),
+					err:    fmt.Errorf("batch queries not supported"),
+				}
+			}
+			expr = stmt
+		case *parser.LetStatement:
+			if expr != nil {
+				// Skip let statements after the query:
+				// they should not be in scope.
+				continue
+			}
+			ctx := &exprContext{
+				source: source,
+				scope:  scope,
+				mode:   letExprMode,
+			}
+			sb := new(strings.Builder)
+			if err := writeExpressionMaybeParen(ctx, sb, stmt.X); err != nil {
+				return "", err
+			}
+			scope[stmt.Name.Name] = sb.String()
+		default:
+			return "", &compileError{
+				source: source,
+				span:   stmt.Span(),
+				err:    fmt.Errorf("unhandled %T statement", stmt),
+			}
+		}
+	}
+	if expr == nil {
+		return "", fmt.Errorf("missing tabular queries")
 	}
 
 	subqueries, err := splitQueries(nil, source, expr)
@@ -30,6 +92,7 @@ func Compile(source string) (string, error) {
 	query := subqueries[len(subqueries)-1]
 	ctx := &exprContext{
 		source: source,
+		scope:  scope,
 	}
 	if len(ctes) > 0 {
 		sb.WriteString("WITH ")
@@ -324,17 +387,21 @@ func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 		sb.WriteString("SELECT *")
 		for _, col := range op.Cols {
 			sb.WriteString(", ")
+			if err := writeExpression(ctx, sb, col.X); err != nil {
+				return err
+			}
 			if col.X == nil {
 				if err := writeExpression(ctx, sb, col.Name.AsQualified()); err != nil {
 					return err
 				}
-			} else {
-				if err := writeExpression(ctx, sb, col.X); err != nil {
-					return err
-				}
 			}
 			sb.WriteString(" AS ")
-			quoteIdentifier(sb, col.Name.Name)
+			if col.Name != nil {
+				quoteIdentifier(sb, col.Name.Name)
+			} else {
+				span := col.X.Span()
+				quoteIdentifier(sb, ctx.source[span.Start:span.End])
+			}
 		}
 		sb.WriteString(" FROM ")
 		sb.WriteString(sub.sourceSQL)
@@ -483,10 +550,12 @@ type exprMode int
 const (
 	defaultExprMode exprMode = iota
 	joinExprMode
+	letExprMode
 )
 
 type exprContext struct {
 	source string
+	scope  map[string]string
 	mode   exprMode
 }
 
@@ -506,10 +575,33 @@ func writeExpression(ctx *exprContext, sb *strings.Builder, x parser.Expr) error
 		if len(x.Parts) == 1 {
 			part := x.Parts[0]
 			if !part.Quoted {
+				if sql, ok := ctx.scope[part.Name]; ok {
+					sb.WriteString(sql)
+					return nil
+				}
 				if sql, ok := builtinIdentifiers[part.Name]; ok {
 					sb.WriteString(sql)
 					return nil
 				}
+				if ctx.mode == letExprMode {
+					return &compileError{
+						source: ctx.source,
+						span:   part.NameSpan,
+						err:    fmt.Errorf("unknown identifier %s in let expression", part.Name),
+					}
+				}
+			} else if ctx.mode == letExprMode {
+				return &compileError{
+					source: ctx.source,
+					span:   part.NameSpan,
+					err:    fmt.Errorf("quoted identifier not permitted in let expression"),
+				}
+			}
+		} else if ctx.mode == letExprMode {
+			return &compileError{
+				source: ctx.source,
+				span:   x.Span(),
+				err:    fmt.Errorf("qualified identifier not permitted in let expression"),
 			}
 		}
 
@@ -520,7 +612,7 @@ func writeExpression(ctx *exprContext, sb *strings.Builder, x parser.Expr) error
 			if !part.Quoted && (part.Name == leftJoinTableAlias || part.Name == rightJoinTableAlias) && ctx.mode != joinExprMode {
 				return &compileError{
 					source: ctx.source,
-					span:   x.Parts[0].NameSpan,
+					span:   part.NameSpan,
 					err:    fmt.Errorf("%s used in non-join context", part.Name),
 				}
 			}
@@ -670,6 +762,8 @@ func writeExpression(ctx *exprContext, sb *strings.Builder, x parser.Expr) error
 	return nil
 }
 
+// writeExpressionMaybeParen writes an expression to sb,
+// surrounding it with parentheses if sufficiently complex.
 func writeExpressionMaybeParen(ctx *exprContext, sb *strings.Builder, x parser.Expr) error {
 	for {
 		p, ok := x.(*parser.ParenExpr)

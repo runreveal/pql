@@ -44,12 +44,36 @@ func (ctx *AnalysisContext) SuggestCompletions(source string, cursor parser.Span
 	pos := cursor.End
 
 	tokens := parser.Scan(source)
-	expr, _ := parser.Parse(source)
+	stmts, _ := parser.Parse(source)
 	prefix := completionPrefix(source, tokens, pos)
-	return ctx.suggestCompletions(expr, prefix, cursor.End)
+	i := spanBefore(stmts, pos, parser.Statement.Span)
+	if i < 0 {
+		return ctx.completeTableNames(prefix)
+	}
+	letNames := make(map[string]struct{})
+	for _, stmt := range stmts[:i] {
+		if stmt, ok := stmt.(*parser.LetStatement); ok && stmt.Name != nil {
+			letNames[stmt.Name.Name] = struct{}{}
+		}
+	}
+	switch stmt := stmts[i].(type) {
+	case *parser.LetStatement:
+		return ctx.suggestLetStatement(stmt, letNames, prefix, pos)
+	case *parser.TabularExpr:
+		return ctx.suggestTabularExpr(stmt, letNames, prefix, pos)
+	default:
+		return nil
+	}
 }
 
-func (ctx *AnalysisContext) suggestCompletions(expr *parser.TabularExpr, prefix string, pos int) []*Completion {
+func (ctx *AnalysisContext) suggestLetStatement(stmt *parser.LetStatement, letNames map[string]struct{}, prefix string, pos int) []*Completion {
+	if !stmt.Assign.IsValid() || pos < stmt.Assign.End {
+		return nil
+	}
+	return completeScope(prefix, letNames)
+}
+
+func (ctx *AnalysisContext) suggestTabularExpr(expr *parser.TabularExpr, letNames map[string]struct{}, prefix string, pos int) []*Completion {
 	posSpan := parser.Span{Start: pos, End: pos}
 	if expr == nil {
 		return ctx.completeTableNames(prefix)
@@ -137,7 +161,7 @@ func (ctx *AnalysisContext) suggestCompletions(expr *parser.TabularExpr, prefix 
 			return nil
 		}
 		if op.Lparen.IsValid() && pos >= op.Lparen.End && (!op.Rparen.IsValid() || pos <= op.Rparen.Start) {
-			return ctx.suggestCompletions(op.Right, prefix, pos)
+			return ctx.suggestTabularExpr(op.Right, letNames, prefix, pos)
 		}
 		if op.On.IsValid() && pos > op.On.End {
 			return completeColumnNames(prefix, columns)
@@ -215,6 +239,19 @@ func completeColumnNames(prefix string, columns []*AnalysisColumn) []*Completion
 			result = append(result, &Completion{
 				Label:  col.Name,
 				Insert: col.Name[len(prefix):],
+			})
+		}
+	}
+	return result
+}
+
+func completeScope(prefix string, scope map[string]struct{}) []*Completion {
+	result := make([]*Completion, 0, len(scope))
+	for name := range scope {
+		if strings.HasPrefix(name, prefix) {
+			result = append(result, &Completion{
+				Label:  name,
+				Insert: name[len(prefix):],
 			})
 		}
 	}
