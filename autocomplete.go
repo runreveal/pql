@@ -125,12 +125,20 @@ func (ctx *AnalysisContext) suggestTabularExpr(source string, expr *parser.Tabul
 			return nil
 		}
 		return completeColumnNames(source, prefix, columns)
+	case *parser.TakeOperator:
+		if prefix.End <= op.Keyword.Start {
+			return completeOperators(source, prefix, false)
+		}
+		if prefix.End <= op.Keyword.End {
+			return nil
+		}
+		return completeScope(source, prefix, letNames)
 	case *parser.TopOperator:
 		if prefix.End <= op.Keyword.Start {
 			return completeOperators(source, prefix, false)
 		}
-		if !op.By.IsValid() || prefix.End <= op.By.End {
-			return nil
+		if !op.By.IsValid() || prefix.End <= op.By.Start {
+			return completeScope(source, prefix, letNames)
 		}
 		return completeColumnNames(source, prefix, columns)
 	case *parser.ProjectOperator:
@@ -169,6 +177,11 @@ func (ctx *AnalysisContext) suggestTabularExpr(source string, expr *parser.Tabul
 		}
 		if op.On.IsValid() && prefix.End > op.On.End {
 			return completeColumnNames(source, prefix, columns)
+		}
+		return nil
+	case *parser.AsOperator:
+		if prefix.End <= op.Keyword.Start {
+			return completeOperators(source, prefix, false)
 		}
 		return nil
 	default:
