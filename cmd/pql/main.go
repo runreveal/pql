@@ -70,6 +70,7 @@ func run(ctx context.Context, output io.Writer, input io.Reader, logError func(e
 	}
 
 	var finalError error
+	letStatements := new(strings.Builder)
 	for scanner.Scan() {
 		sb.Write(scanner.Bytes())
 		sb.WriteByte('\n')
@@ -80,7 +81,20 @@ func run(ctx context.Context, output io.Writer, input io.Reader, logError func(e
 		}
 
 		for _, stmt := range statements[:len(statements)-1] {
-			sql, err := pql.Compile(stmt)
+			// Valid let statements are prepended to an ongoing prelude.
+			tokens := parser.Scan(stmt)
+			if len(tokens) > 0 && tokens[0].Kind == parser.TokenIdentifier && tokens[0].Value == "let" {
+				if _, err := pql.Compile(letStatements.String() + stmt + ";X"); err != nil {
+					logError(err)
+					finalError = errors.New("one or more statements could not be compiled")
+				} else {
+					letStatements.WriteString(stmt)
+					letStatements.WriteString(";\n")
+				}
+				continue
+			}
+
+			sql, err := pql.Compile(letStatements.String() + stmt)
 			if err != nil {
 				logError(err)
 				finalError = errors.New("one or more statements could not be compiled")

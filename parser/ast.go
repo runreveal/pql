@@ -72,11 +72,19 @@ func (id *QualifiedIdent) Span() Span {
 
 func (id *QualifiedIdent) expression() {}
 
+type Statement interface {
+	Node
+	statement()
+}
+
 // TabularExpr is a query expression that produces a table.
+// It implements [Statement].
 type TabularExpr struct {
 	Source    TabularDataSource
 	Operators []TabularOperator
 }
+
+func (x *TabularExpr) statement() {}
 
 func (x *TabularExpr) Span() Span {
 	if x == nil {
@@ -547,6 +555,29 @@ func (idx *IndexExpr) Span() Span {
 
 func (idx *IndexExpr) expression() {}
 
+// A LetStatement node represents a let statement,
+// assigning an expression to a name.
+// It implements [Statement].
+type LetStatement struct {
+	Keyword Span
+	Name    *Ident
+	Assign  Span
+	X       Expr
+}
+
+func (stmt *LetStatement) statement() {}
+
+func (stmt *LetStatement) Span() Span {
+	if stmt == nil {
+		return nullSpan()
+	}
+	xSpan := nullSpan()
+	if stmt.X != nil {
+		xSpan = stmt.X.Span()
+	}
+	return unionSpans(stmt.Keyword, stmt.Name.Span(), stmt.Assign, xSpan)
+}
+
 // Walk traverses an AST in depth-first order.
 // If the visit function returns true for a node,
 // the visit function will be called for its children.
@@ -683,6 +714,11 @@ func Walk(n Node, visit func(n Node) bool) {
 			if visit(n) {
 				stack = append(stack, n.Index)
 				stack = append(stack, n.X)
+			}
+		case *LetStatement:
+			if visit(n) {
+				stack = append(stack, n.X)
+				stack = append(stack, n.Name)
 			}
 		default:
 			panic(fmt.Errorf("unknown Node type %T", n))

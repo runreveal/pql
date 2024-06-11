@@ -69,6 +69,8 @@ documentation is representative of the current pql api.
 - [`as`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/as-operator)
 - [`count`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/count-operator)
 - [`join`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/join-operator)
+- [`let` statements](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/let-statement),
+  but only scalar expressions are supported.
 - [`project`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/project-operator)
 - [`extend`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/extend-operator)
 - [`sort`/`order`](https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/sort-operator)
