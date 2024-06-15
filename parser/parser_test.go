@@ -1930,6 +1930,119 @@ var parserTests = []struct {
 			},
 		},
 	},
+	{
+		name:  "TrailingPipe",
+		query: "X |",
+		want: []Statement{&TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&UnknownTabularOperator{
+					Pipe: newSpan(2, 3),
+				},
+			},
+		}},
+		err: true,
+	},
+	{
+		name:  "UnknownOperator",
+		query: "X | xyzzy",
+		want: []Statement{&TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&UnknownTabularOperator{
+					Pipe: newSpan(2, 3),
+					Tokens: []Token{
+						{
+							Kind:  TokenIdentifier,
+							Span:  newSpan(4, 9),
+							Value: "xyzzy",
+						},
+					},
+				},
+			},
+		}},
+		err: true,
+	},
+	{
+		name:  "UnknownOperatorInMiddle",
+		query: "X | xyzzy (Y | Z) | count",
+		want: []Statement{&TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "X",
+					NameSpan: newSpan(0, 1),
+				},
+			},
+			Operators: []TabularOperator{
+				&UnknownTabularOperator{
+					Pipe: newSpan(2, 3),
+					Tokens: []Token{
+						{
+							Kind:  TokenIdentifier,
+							Span:  newSpan(4, 9),
+							Value: "xyzzy",
+						},
+						{
+							Kind: TokenLParen,
+							Span: newSpan(10, 11),
+						},
+						{
+							Kind:  TokenIdentifier,
+							Span:  newSpan(11, 12),
+							Value: "Y",
+						},
+						{
+							Kind: TokenPipe,
+							Span: newSpan(13, 14),
+						},
+						{
+							Kind:  TokenIdentifier,
+							Span:  newSpan(15, 16),
+							Value: "Z",
+						},
+						{
+							Kind: TokenRParen,
+							Span: newSpan(16, 17),
+						},
+					},
+				},
+				&CountOperator{
+					Pipe:    newSpan(18, 19),
+					Keyword: newSpan(20, 25),
+				},
+			},
+		}},
+		err: true,
+	},
+	{
+		name:  "PartialProject",
+		query: "People | project , LastName",
+		want: []Statement{&TabularExpr{
+			Source: &TableRef{
+				Table: &Ident{
+					Name:     "People",
+					NameSpan: newSpan(0, 6),
+				},
+			},
+			Operators: []TabularOperator{
+				&ProjectOperator{
+					Pipe:    newSpan(7, 8),
+					Keyword: newSpan(9, 16),
+				},
+			},
+		}},
+		err: true,
+	},
 }
 
 func TestParse(t *testing.T) {

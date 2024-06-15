@@ -157,6 +157,9 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 
 		operatorName, ok := opParser.next()
 		if !ok {
+			expr.Operators = append(expr.Operators, &UnknownTabularOperator{
+				Pipe: pipeToken.Span,
+			})
 			finalError = joinErrors(finalError, &parseError{
 				source: opParser.source,
 				span:   pipeToken.Span,
@@ -165,6 +168,10 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 			continue
 		}
 		if operatorName.Kind != TokenIdentifier {
+			expr.Operators = append(expr.Operators, &UnknownTabularOperator{
+				Pipe:   pipeToken.Span,
+				Tokens: opParser.tokens,
+			})
 			finalError = joinErrors(finalError, &parseError{
 				source: opParser.source,
 				span:   operatorName.Span,
@@ -234,6 +241,10 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 			}
 			finalError = joinErrors(finalError, err)
 		default:
+			expr.Operators = append(expr.Operators, &UnknownTabularOperator{
+				Pipe:   pipeToken.Span,
+				Tokens: opParser.tokens,
+			})
 			finalError = joinErrors(finalError, &parseError{
 				source: opParser.source,
 				span:   operatorName.Span,

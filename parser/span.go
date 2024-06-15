@@ -47,6 +47,23 @@ func (span Span) String() string {
 	return fmt.Sprintf("[%d,%d)", span.Start, span.End)
 }
 
+// Overlaps reports whether span and span2 intersect.
+// In the case where both of the spans are zero-length,
+// Overlaps reports true if the spans are equal and valid.
+// In the case where only one of the spans is zero-length,
+// Overlaps reports true if the zero-length span's start
+// is between the other span's bounds, inclusive.
+func (span Span) Overlaps(span2 Span) bool {
+	if !span.IsValid() || !span2.IsValid() {
+		return false
+	}
+	intersect := Span{
+		Start: max(span.Start, span2.Start),
+		End:   min(span.End, span2.End),
+	}
+	return intersect.IsValid()
+}
+
 func unionSpans(spans ...Span) Span {
 	u := nullSpan()
 	for _, span := range spans {
