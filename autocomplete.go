@@ -7,6 +7,7 @@ import (
 	"cmp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/runreveal/pql/parser"
 )
@@ -267,7 +268,7 @@ func completeColumnNames(source string, prefixSpan parser.Span, columns []*Analy
 
 	result := make([]*Completion, 0, len(columns))
 	for _, col := range columns {
-		if strings.HasPrefix(col.Name, prefix) {
+		if hasFoldPrefix(col.Name, prefix) {
 			result = append(result, &Completion{
 				Label: col.Name,
 				Text:  col.Name,
@@ -283,7 +284,7 @@ func completeScope(source string, prefixSpan parser.Span, scope map[string]struc
 
 	result := make([]*Completion, 0, len(scope))
 	for name := range scope {
-		if strings.HasPrefix(name, prefix) {
+		if hasFoldPrefix(name, prefix) {
 			result = append(result, &Completion{
 				Label: name,
 				Text:  name,
@@ -299,7 +300,7 @@ func (ctx *AnalysisContext) completeTableNames(source string, prefixSpan parser.
 
 	result := make([]*Completion, 0, len(ctx.Tables))
 	for tableName := range ctx.Tables {
-		if strings.HasPrefix(tableName, prefix) {
+		if hasFoldPrefix(tableName, prefix) {
 			result = append(result, &Completion{
 				Label: tableName,
 				Text:  tableName,
@@ -332,7 +333,7 @@ func completeOperators(source string, prefixSpan parser.Span, includePipe bool) 
 
 	result := make([]*Completion, 0, len(sortedOperatorNames))
 	for _, name := range sortedOperatorNames {
-		if !strings.HasPrefix(name, prefix) {
+		if !hasFoldPrefix(name, prefix) {
 			continue
 		}
 		c := &Completion{
@@ -394,4 +395,27 @@ func isCompletableToken(kind parser.TokenKind) bool {
 		kind == parser.TokenOr ||
 		kind == parser.TokenIn ||
 		kind == parser.TokenBy
+}
+
+// hasFoldPrefix reports whether s starts with the given prefix,
+// ignoring differences in case.
+func hasFoldPrefix(s, prefix string) bool {
+	n := utf8.RuneCountInString(prefix)
+
+	// Find the end of the first n runes in s.
+	// If s does not have that many runes,
+	// then it can't have the prefix.
+	if len(s) < n {
+		return false
+	}
+	var prefixLen int
+	for i := 0; i < n; i++ {
+		_, sz := utf8.DecodeRuneInString(s[prefixLen:])
+		if sz == 0 {
+			return false
+		}
+		prefixLen += sz
+	}
+
+	return strings.EqualFold(s[:prefixLen], prefix)
 }

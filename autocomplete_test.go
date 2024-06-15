@@ -783,6 +783,30 @@ var completionTests = []struct {
 			},
 		},
 	},
+	{
+		name: "CaseInsensitive",
+		context: &AnalysisContext{
+			Tables: map[string]*AnalysisTable{
+				"People": {
+					Columns: []*AnalysisColumn{
+						{Name: "FirstName"},
+						{Name: "LastName"},
+					},
+				},
+			},
+		},
+		sourceBefore: "People | where fI",
+		want: []*Completion{
+			{
+				Label: "FirstName",
+				Text:  "FirstName",
+				Span: parser.Span{
+					Start: 15,
+					End:   17,
+				},
+			},
+		},
+	},
 }
 
 func TestSuggestCompletions(t *testing.T) {
@@ -821,5 +845,30 @@ func BenchmarkSuggestCompletions(b *testing.B) {
 				})
 			}
 		})
+	}
+}
+
+func TestHasFoldPrefix(t *testing.T) {
+	tests := []struct {
+		s      string
+		prefix string
+		want   bool
+	}{
+		{"", "", true},
+		{"abc", "", true},
+		{"abc", "a", true},
+		{"abc", "A", true},
+		{"Abc", "a", true},
+		{"Abc", "A", true},
+		{"Abc", "x", false},
+		{"", "abc", false},
+		{"ABC", "abc", true},
+		{"abc", "ABC", true},
+		{"ABC", "abcd", false},
+	}
+	for _, test := range tests {
+		if got := hasFoldPrefix(test.s, test.prefix); got != test.want {
+			t.Errorf("hasFoldPrefix(%q, %q) = %t; want %t", test.s, test.prefix, got, test.want)
+		}
 	}
 }
