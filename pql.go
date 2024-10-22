@@ -296,6 +296,8 @@ func canAttachSort(op parser.TabularOperator) bool {
 	switch op.(type) {
 	case *parser.ProjectOperator, *parser.SummarizeOperator, *parser.AsOperator:
 		return false
+	case *parser.RenderOperator:
+		return false
 	default:
 		return true
 	}
@@ -463,6 +465,28 @@ func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 	case *parser.CountOperator:
 		sb.WriteString(`SELECT COUNT(*) AS "count()" FROM `)
 		sb.WriteString(sub.sourceSQL)
+	case *parser.RenderOperator:
+		sb.WriteString("SELECT\n")
+		sb.WriteString("    'render' as __viz_type,\n")
+		sb.WriteString("    ")
+		quoteIdentifier(sb, op.ChartType.Name)
+		sb.WriteString(" as __chart_type")
+
+		// Add properties if present
+		if len(op.Props) > 0 {
+			for _, prop := range op.Props {
+				sb.WriteString(",\n    ")
+				if err := writeExpression(ctx, sb, prop.Value); err != nil {
+					return err
+				}
+				sb.WriteString(" as ")
+				quoteIdentifier(sb, prop.Name.Name)
+			}
+		}
+
+		sb.WriteString("\nFROM ")
+		sb.WriteString(sub.sourceSQL)
+
 	default:
 		fmt.Fprintf(sb, "SELECT NULL /* unsupported operator %T */", op)
 		return nil

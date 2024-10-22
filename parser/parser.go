@@ -233,6 +233,13 @@ func (p *parser) tabularExpr() (*TabularExpr, error) {
 				expr.Operators = append(expr.Operators, op)
 			}
 			finalError = joinErrors(finalError, err)
+		case "render":
+			op, err := opParser.renderOperator(pipeToken, operatorName)
+			if op != nil {
+				expr.Operators = append(expr.Operators, op)
+			}
+			finalError = joinErrors(finalError, err)
+
 		default:
 			finalError = joinErrors(finalError, &parseError{
 				source: opParser.source,
@@ -493,6 +500,110 @@ func (p *parser) extendOperator(pipe, keyword Token) (*ExtendOperator, error) {
 			return op, nil
 		}
 	}
+}
+
+func (p *parser) renderOperator(pipe, keyword Token) (*RenderOperator, error) {
+	op := &RenderOperator{
+		Pipe:    pipe.Span,
+		Keyword: keyword.Span,
+		With:    nullSpan(),
+		Lparen:  nullSpan(),
+		Rparen:  nullSpan(),
+	}
+
+	// Parse chart type (required)
+	chartType, err := p.ident()
+	if err != nil {
+		return op, &parseError{
+			source: p.source,
+			span:   keyword.Span,
+			err:    fmt.Errorf("expected chart type after render, got %v", err),
+		}
+	}
+	op.ChartType = chartType
+
+	// Look for optional "with" clause
+	tok, ok := p.next()
+	if !ok {
+		return op, nil
+	}
+
+	if tok.Kind != TokenIdentifier || tok.Value != "with" {
+		p.prev()
+		return op, nil
+	}
+	op.With = tok.Span
+
+	// Parse opening parenthesis
+	tok, _ = p.next()
+	if tok.Kind != TokenLParen {
+		return op, &parseError{
+			source: p.source,
+			span:   tok.Span,
+			err:    fmt.Errorf("expected '(' after with, got %s", formatToken(p.source, tok)),
+		}
+	}
+	op.Lparen = tok.Span
+
+	// Parse properties
+	for {
+		prop, err := p.renderProperty()
+		if err != nil {
+			return op, makeErrorOpaque(err)
+		}
+		if prop != nil {
+			op.Props = append(op.Props, prop)
+		}
+
+		// Check for comma or closing parenthesis
+		tok, _ = p.next()
+		if tok.Kind == TokenRParen {
+			op.Rparen = tok.Span
+			break
+		}
+		if tok.Kind != TokenComma {
+			return op, &parseError{
+				source: p.source,
+				span:   tok.Span,
+				err:    fmt.Errorf("expected ',' or ')', got %s", formatToken(p.source, tok)),
+			}
+		}
+	}
+
+	return op, nil
+}
+
+func (p *parser) renderProperty() (*RenderProperty, error) {
+	prop := &RenderProperty{
+		Assign: nullSpan(),
+	}
+
+	// Parse property name
+	name, err := p.ident()
+	if err != nil {
+		return nil, err
+	}
+	prop.Name = name
+
+	// Parse equals sign
+	tok, _ := p.next()
+	if tok.Kind != TokenAssign {
+		return nil, &parseError{
+			source: p.source,
+			span:   tok.Span,
+			err:    fmt.Errorf("expected '=' after property name, got %s", formatToken(p.source, tok)),
+		}
+	}
+	prop.Assign = tok.Span
+
+	// Parse property value
+	value, err := p.expr()
+	if err != nil {
+		return nil, err
+	}
+	prop.Value = value
+
+	return prop, nil
 }
 
 func (p *parser) extendColumn() (*ExtendColumn, error) {
