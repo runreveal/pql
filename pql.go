@@ -466,27 +466,46 @@ func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 		sb.WriteString(`SELECT COUNT(*) AS "count()" FROM `)
 		sb.WriteString(sub.sourceSQL)
 	case *parser.RenderOperator:
-		sb.WriteString("SELECT\n")
-		sb.WriteString("    'render' as __viz_type,\n")
-		sb.WriteString("    ")
-		quoteIdentifier(sb, op.ChartType.Name)
-		sb.WriteString(" as __chart_type")
+		// First, write the source data
+		sb.WriteString("SELECT *,\n")
+		// Then add our render-specific metadata columns
+		sb.WriteString("    '")
+		sb.WriteString(op.ChartType.Name)
+		sb.WriteString("' as \"render_type\"")
 
-		// Add properties if present
-		if len(op.Props) > 0 {
-			for _, prop := range op.Props {
-				sb.WriteString(",\n    ")
-				if err := writeExpression(ctx, sb, prop.Value); err != nil {
-					return err
-				}
-				sb.WriteString(" as ")
-				quoteIdentifier(sb, prop.Name.Name)
+		// Add render properties with standardized prefixes
+		for _, prop := range op.Props {
+			sb.WriteString(",\n    ")
+			// Quote all values as strings since they're instructions for the renderer
+			sb.WriteString("'")
+			if lit, ok := prop.Value.(*parser.BasicLit); ok {
+				// Use the literal value directly
+				sb.WriteString(lit.Value)
+			} else if id, ok := prop.Value.(*parser.QualifiedIdent); ok {
+				// Use the identifier name
+				sb.WriteString(id.Parts[0].Name)
 			}
+			sb.WriteString("' as \"render_")
+
+			// Simplified property naming
+			switch strings.ToLower(prop.Name.Name) {
+			case "xaxis", "x":
+				sb.WriteString("xaxis")
+			case "yaxis", "y":
+				sb.WriteString("yaxis")
+			case "title":
+				sb.WriteString("title")
+			case "series":
+				sb.WriteString("series")
+			default:
+				sb.WriteString("prop_")
+				sb.WriteString(prop.Name.Name)
+			}
+			sb.WriteString("\"")
 		}
 
 		sb.WriteString("\nFROM ")
 		sb.WriteString(sub.sourceSQL)
-
 	default:
 		fmt.Fprintf(sb, "SELECT NULL /* unsupported operator %T */", op)
 		return nil
