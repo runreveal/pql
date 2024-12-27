@@ -485,22 +485,8 @@ func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 				// Use the identifier name
 				sb.WriteString(id.Parts[0].Name)
 			}
-			sb.WriteString("' as \"render_")
-
-			// Simplified property naming
-			switch strings.ToLower(prop.Name.Name) {
-			case "xaxis", "x":
-				sb.WriteString("xaxis")
-			case "yaxis", "y":
-				sb.WriteString("yaxis")
-			case "title":
-				sb.WriteString("title")
-			case "series":
-				sb.WriteString("series")
-			default:
-				sb.WriteString("prop_")
-				sb.WriteString(prop.Name.Name)
-			}
+			sb.WriteString("' as \"render_prop_")
+			sb.WriteString(prop.Name.Name)
 			sb.WriteString("\"")
 		}
 

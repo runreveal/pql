@@ -1,0 +1,5 @@
+State,TotalDamage,render_type,render_prop_title,render_prop_xtitle,render_prop_ytitle
+FLORIDA,6200000,barchart,Property Damage by State,State,Total Damage ($)
+MISSISSIPPI,20000,barchart,Property Damage by State,State,Total Damage ($)
+GEORGIA,2000,barchart,Property Damage by State,State,Total Damage ($)
+ATLANTIC SOUTH,0,barchart,Property Damage by State,State,Total Damage ($)
