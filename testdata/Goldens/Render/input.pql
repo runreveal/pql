@@ -1,6 +1,5 @@
 StormEvents 
 | project State, EventType, DamageProperty
-| extend foo=1
 | summarize TotalDamage=sum(DamageProperty) by State
 | sort by TotalDamage desc 
 | limit 10
