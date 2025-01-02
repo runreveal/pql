@@ -1,0 +1,10 @@
+StormEvents 
+| project State, EventType, DamageProperty
+| summarize TotalDamage=sum(DamageProperty) by State
+| sort by TotalDamage desc 
+| limit 10
+| render barchart with (
+    title="Property Damage by State",
+    xtitle="State",
+    ytitle="Total Damage ($)"
+)

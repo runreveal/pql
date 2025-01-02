@@ -296,6 +296,8 @@ func canAttachSort(op parser.TabularOperator) bool {
 	switch op.(type) {
 	case *parser.ProjectOperator, *parser.SummarizeOperator, *parser.AsOperator:
 		return false
+	case *parser.RenderOperator:
+		return false
 	default:
 		return true
 	}
@@ -462,6 +464,33 @@ func (sub *subquery) write(ctx *exprContext, sb *strings.Builder) error {
 		}
 	case *parser.CountOperator:
 		sb.WriteString(`SELECT COUNT(*) AS "count()" FROM `)
+		sb.WriteString(sub.sourceSQL)
+	case *parser.RenderOperator:
+		// First, write the source data
+		sb.WriteString("SELECT *,\n")
+		// Then add our render-specific metadata columns
+		sb.WriteString("    '")
+		sb.WriteString(op.ChartType.Name)
+		sb.WriteString("' as \"render_type\"")
+
+		// Add render properties with standardized prefixes
+		for _, prop := range op.Props {
+			sb.WriteString(",\n    ")
+			// Quote all values as strings since they're instructions for the renderer
+			sb.WriteString("'")
+			if lit, ok := prop.Value.(*parser.BasicLit); ok {
+				// Use the literal value directly
+				sb.WriteString(lit.Value)
+			} else if id, ok := prop.Value.(*parser.QualifiedIdent); ok {
+				// Use the identifier name
+				sb.WriteString(id.Parts[0].Name)
+			}
+			sb.WriteString("' as \"render_prop_")
+			sb.WriteString(prop.Name.Name)
+			sb.WriteString("\"")
+		}
+
+		sb.WriteString("\nFROM ")
 		sb.WriteString(sub.sourceSQL)
 	default:
 		fmt.Fprintf(sb, "SELECT NULL /* unsupported operator %T */", op)

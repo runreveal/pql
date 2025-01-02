@@ -578,6 +578,52 @@ func (stmt *LetStatement) Span() Span {
 	return unionSpans(stmt.Keyword, stmt.Name.Span(), stmt.Assign, xSpan)
 }
 
+// RenderOperator represents a `| render` operator in a [TabularExpr].
+// It implements [TabularOperator].
+type RenderOperator struct {
+	Pipe      Span
+	Keyword   Span
+	ChartType *Ident
+
+	// Optional properties
+	With   Span // Span for 'with' keyword if present
+	Lparen Span // Opening parenthesis for properties
+	Props  []*RenderProperty
+	Rparen Span // Closing parenthesis for properties
+}
+
+// RenderProperty represents a single property in the render operator's
+// with clause, like "title='My Chart'" or "kind=stacked"
+type RenderProperty struct {
+	Name   *Ident
+	Assign Span
+	Value  Expr
+}
+
+func (op *RenderProperty) Span() Span {
+	if op == nil {
+		return nullSpan()
+	}
+	return unionSpans(op.Name.Span(), op.Assign, nodeSpan(op.Value))
+}
+
+func (op *RenderOperator) tabularOperator() {}
+
+func (op *RenderOperator) Span() Span {
+	if op == nil {
+		return nullSpan()
+	}
+	return unionSpans(
+		op.Pipe,
+		op.Keyword,
+		op.ChartType.Span(),
+		op.With,
+		op.Lparen,
+		nodeSliceSpan(op.Props),
+		op.Rparen,
+	)
+}
+
 // Walk traverses an AST in depth-first order.
 // If the visit function returns true for a node,
 // the visit function will be called for its children.
@@ -719,6 +765,17 @@ func Walk(n Node, visit func(n Node) bool) {
 			if visit(n) {
 				stack = append(stack, n.X)
 				stack = append(stack, n.Name)
+			}
+		// Add to Walk function's switch statement:
+		case *RenderOperator:
+			if visit(n) {
+				stack = append(stack, n.ChartType)
+				for i := len(n.Props) - 1; i >= 0; i-- {
+					if n.Props[i].Value != nil {
+						stack = append(stack, n.Props[i].Value)
+					}
+					stack = append(stack, n.Props[i].Name)
+				}
 			}
 		default:
 			panic(fmt.Errorf("unknown Node type %T", n))
